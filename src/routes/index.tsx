@@ -41,7 +41,7 @@ const departures: Departure[] = (() => {
         train: `VV ${pad3(1 + 2 * (h - 6))}`,
         to: "Bentach Główny",
         via: `Utroch ${pad(h + 1)}:50`,
-        arrival: `${pad(h + 1)}:02`,
+        arrival: `${pad((h + 1) % 24)}:02`,
       });
     }
     if (h >= 7) {
