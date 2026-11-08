@@ -139,6 +139,67 @@ function Index() {
         </form>
       </section>
 
+      <section id="rozklad" className="mx-auto max-w-7xl px-5 pt-24">
+        <div className="overflow-hidden rounded-3xl bg-ink text-ink-foreground">
+          <div className="flex flex-col gap-6 border-b border-ink-foreground/10 p-8 md:flex-row md:items-end md:justify-between md:p-12">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground">
+                <Zap className="h-3 w-3" /> KDP Velovia
+              </span>
+              <h2 className="mt-4 text-4xl font-extrabold tracking-tight md:text-5xl">Odjazdy</h2>
+              <p className="mt-2 flex items-center gap-2 text-ink-foreground/60">
+                <TrainFront className="h-4 w-4" /> Skuszawyjice Wschodnie · wszystkie dni
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {destinations.map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDest(d)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    dest === d ? "bg-primary text-primary-foreground" : "bg-ink-foreground/10 hover:bg-ink-foreground/20"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="max-h-[560px] overflow-y-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-ink text-xs uppercase tracking-wider text-ink-foreground/50">
+                <tr>
+                  <th className="px-8 py-4 font-semibold md:px-12">Godzina</th>
+                  <th className="px-4 py-4 font-semibold">Pociąg</th>
+                  <th className="px-4 py-4 font-semibold">Do / przez</th>
+                  <th className="hidden px-8 py-4 text-right font-semibold md:table-cell md:px-12">Przyjazd</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-foreground/10">
+                {departures
+                  .filter((d) => dest === "Wszystkie" || d.to === dest)
+                  .map((d) => (
+                    <tr key={d.train} className="transition hover:bg-ink-foreground/5">
+                      <td className="px-8 py-4 text-lg font-extrabold tabular-nums md:px-12">{d.time}</td>
+                      <td className="px-4 py-4">
+                        <span className="inline-flex items-center gap-2 rounded-lg bg-ink-foreground/10 px-2.5 py-1 font-bold">
+                          <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-extrabold text-primary-foreground">KDP</span>
+                          {d.train}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-bold">{d.to}</p>
+                        <p className="mt-0.5 text-xs text-ink-foreground/50">{d.via}</p>
+                      </td>
+                      <td className="hidden px-8 py-4 text-right font-semibold tabular-nums text-ink-foreground/70 md:table-cell md:px-12">{d.arrival}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section id="trasy" className="mx-auto max-w-7xl px-5 py-24">
         <div className="flex items-end justify-between gap-6">
           <h2 className="text-4xl font-extrabold tracking-tight md:text-5xl">Popularne trasy</h2>
