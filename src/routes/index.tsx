@@ -87,8 +87,9 @@ const features = [
 ];
 
 function Index() {
-  const [from, setFrom] = useState("Kraków Główny");
+  const [from, setFrom] = useState("Skuszawyjice Wschodnie");
   const [to, setTo] = useState("");
+  const [dest, setDest] = useState("Wszystkie");
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
@@ -97,6 +98,7 @@ function Index() {
           <img src={logo.url} alt="Koleje Królewskie" className="h-9 w-auto" />
           <nav className="hidden gap-8 text-sm font-medium md:flex">
             <a href="#bilety" className="hover:text-primary">Bilety</a>
+            <a href="#rozklad" className="hover:text-primary">Rozkład</a>
             <a href="#trasy" className="hover:text-primary">Trasy</a>
             <a href="#podroz" className="hover:text-primary">Podróż</a>
             <a href="#aplikacja" className="hover:text-primary">Aplikacja</a>
