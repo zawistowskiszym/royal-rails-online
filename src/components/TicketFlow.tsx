@@ -70,7 +70,7 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
 
   const total = sel ? Math.round(sel.price * (cls === 1 ? 1.5 : 1) * (fares.find((f) => f.id === fare)!.factor) * count * 100) / 100 : 0;
   const zl = (n: number) => n.toFixed(2).replace(".", ",") + " zł";
-  const dateLabel = new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+  const dateLabel = ((s: string) => s[0].toUpperCase() + s.slice(1))(new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }));
   const input = "w-full rounded-xl bg-secondary px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-primary";
 
   return (
@@ -82,7 +82,7 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
               {step === "list" ? "Wyniki wyszukiwania" : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
             </p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight">{ORIGIN} → {sel?.to ?? (to || "wszystkie kierunki")}</h2>
-            <p className="text-sm capitalize text-muted-foreground">{dateLabel}</p>
+            <p className="text-sm text-muted-foreground">{dateLabel}</p>
           </div>
           <button onClick={onClose} aria-label="Zamknij" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary hover:bg-accent"><X className="h-4 w-4" /></button>
         </div>
@@ -168,7 +168,7 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
                 <div className="flex items-center gap-2"><span className="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">KDP</span><span className="font-semibold">Velovia {sel.train}</span></div>
                 <div className="text-3xl font-extrabold tabular-nums">{sel.dep} → {sel.arr}</div>
                 <div className="text-sm opacity-80">{ORIGIN} → {sel.to}</div>
-                <div className="text-sm capitalize opacity-80">{dateLabel}</div>
+                <div className="text-sm opacity-80">{dateLabel}</div>
                 <div className="text-sm opacity-80">{name} · {count} os. · klasa {cls} · {fares.find((f) => f.id === fare)!.label}</div>
                 <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {zl(total)}</div>
               </div>
