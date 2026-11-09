@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowRight, ArrowLeftRight, Calendar, Wifi, Bike, Leaf, Clock, Smartphone, Ticket, TrainFront, Zap } from "lucide-react";
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
+import { TicketFlow } from "@/components/TicketFlow";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -90,6 +91,8 @@ function Index() {
   const [from, setFrom] = useState("Skuszawyjice Wschodnie");
   const [to, setTo] = useState("");
   const [dest, setDest] = useState("Wszystkie");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
@@ -123,7 +126,7 @@ function Index() {
           </div>
         </div>
 
-        <form id="bilety" onSubmit={(e) => e.preventDefault()} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
+        <form id="bilety" onSubmit={(e) => { e.preventDefault(); setOpen(true); }} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
           <Field label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" />
           <button type="button" onClick={() => { setFrom(to); setTo(from); }} aria-label="Zamień stacje" className="mx-auto grid h-10 w-10 place-items-center self-center rounded-full bg-secondary transition hover:bg-accent hover:text-accent-foreground">
             <ArrowLeftRight className="h-4 w-4" />
@@ -131,12 +134,13 @@ function Index() {
           <Field label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" />
           <label className="flex flex-col rounded-xl bg-secondary px-4 py-2.5">
             <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Calendar className="h-3 w-3" /> Kiedy</span>
-            <input type="date" className="bg-transparent font-semibold outline-none" defaultValue={new Date().toISOString().slice(0, 10)} />
+            <input type="date" className="bg-transparent font-semibold outline-none" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
           <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-semibold text-primary-foreground transition hover:opacity-90">
             Szukaj <ArrowRight className="h-4 w-4" />
           </button>
         </form>
+        {open && <TicketFlow deps={departures} from={from} to={to} date={date} onClose={() => setOpen(false)} />}
       </section>
 
       <section id="rozklad" className="mx-auto max-w-7xl px-5 pt-24">
