@@ -5,7 +5,7 @@ export type Dep = { time: string; train: string; to: string; via: string; arriva
 type Conn = { train: string; dep: string; arr: string; to: string; mins: number; price: number };
 
 const ORIGIN = "Skuszawyjice Wschodnie";
-const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const toMin = (t: string) => { const [h = 0, m = 0] = t.split(":").map(Number); return h * 60 + m; };
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 function findConnections(deps: Dep[], from: string, to: string): Conn[] {
@@ -45,7 +45,7 @@ function FakeQR({ seed }: { seed: string }) {
         if (finder) return null;
         return v ? <rect key={i} x={x} y={y} width="1" height="1" className="fill-foreground" /> : null;
       })}
-      {[[0, 0], [14, 0], [0, 14]].map(([x, y]) => (
+      {([[0, 0], [14, 0], [0, 14]] as const).map(([x, y]) => (
         <g key={`${x}${y}`}>
           <rect x={x} y={y} width="7" height="7" className="fill-foreground" />
           <rect x={x + 1} y={y + 1} width="5" height="5" className="fill-background" />
@@ -70,7 +70,7 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
 
   const total = sel ? Math.round(sel.price * (cls === 1 ? 1.5 : 1) * (fares.find((f) => f.id === fare)!.factor) * count * 100) / 100 : 0;
   const zl = (n: number) => n.toFixed(2).replace(".", ",") + " zł";
-  const dateLabel = ((s: string) => s[0].toUpperCase() + s.slice(1))(new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }));
+  const dateLabel = ((s: string) => s.charAt(0).toUpperCase() + s.slice(1))(new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }));
   const input = "w-full rounded-xl bg-secondary px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-primary";
 
   return (
