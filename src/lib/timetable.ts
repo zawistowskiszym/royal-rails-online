@@ -8,6 +8,7 @@ export const categoryNames: Record<string, string> = { vv: "Velovia", ic: "Inter
 export const categoryCodes: Record<string, string> = { vv: "VV", ic: "IC", kr: "KR", spr: "SPR" };
 
 export const stations = Array.from(new Set(trains.flatMap((t) => t.s.map((s) => s[0])))).sort((a, b) => a.localeCompare(b, "pl"));
+export const allSkuszawyjiceStations = "Skuszawyjice — wszystkie stacje";
 
 export const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l").trim();
 const toMin = (t: string) => { const [h = 0, m = 0] = t.split(":").map(Number); return h * 60 + m; };
@@ -18,9 +19,13 @@ const match = (name: string, q: string) => norm(name) === norm(q) || norm(name).
 
 export function findConnections(from: string, to: string): Conn[] {
   if (!from.trim() || !to.trim()) return [];
+  const searchAllSkuszawyjiceStations = norm(from) === norm(allSkuszawyjiceStations);
+  const skuszawyjicePrefix = norm("Skuszawyjice ");
   const out: Conn[] = [];
   for (const t of trains) {
-    const i = t.s.findIndex((s) => s[3] && match(s[0], from));
+    const i = t.s.findIndex((s) => s[3] && (searchAllSkuszawyjiceStations
+      ? norm(s[0]).startsWith(skuszawyjicePrefix)
+      : match(s[0], from)));
     if (i < 0) continue;
     const j = t.s.findIndex((s, k) => k > i && s[2] && match(s[0], to));
     if (j < 0) continue;
