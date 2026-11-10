@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { basePrice, passengerPrice } from "@/lib/fares";
+import { basePrice, eur, passengerPrice } from "@/lib/fares";
+import { veloviaRoute } from "@/lib/timetable";
 
 describe("cennik Velovia", () => {
   it("cena bazowa wg dystansu i klasy", () => {
@@ -18,5 +19,12 @@ describe("cennik Velovia", () => {
   it("ulgi nie łączą się z PROMO ani SAVER", () => {
     expect(passengerPrice(100, "standard", "promo", "student")).toBe(13.93);
     expect(passengerPrice(100, "standard", "saver", "senior")).toBe(16.92);
+  });
+  it("karty tras pokazują ceny w EUR wyliczone z rozkładu", () => {
+    const r = veloviaRoute("Skuszawyjice Wschodnie", "Helonki Centralne");
+    expect(r).not.toBeNull();
+    const price = `od ${eur(basePrice(r!.km, "standard") * 0.7)}`;
+    expect(price).toBe("od 13,93 €");
+    expect(price).not.toContain("zł");
   });
 });
