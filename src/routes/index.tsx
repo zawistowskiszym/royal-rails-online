@@ -19,12 +19,19 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const routes = [
-  { from: "Skuszawyjice Wschodnie", to: "Bentach Główny", time: "1 h 54 min", price: "od 24 zł" },
-  { from: "Skuszawyjice Wschodnie", to: "Bizceń Główny", time: "2 h 16 min", price: "od 27 zł" },
-  { from: "Skuszawyjice Wschodnie", to: "Budziszów Główny", time: "55 min", price: "od 15 zł" },
-  { from: "Skuszawyjice Wschodnie", to: "Helonki Centralne", time: "41 min", price: "od 12 zł" },
-];
+const routeDests = ["Bentach Główny", "Bizceń Główny", "Budziszów Główny", "Helonki Centralne"];
+const origin = "Skuszawyjice Wschodnie";
+
+const routes = routeDests.flatMap((to) => {
+  const r = veloviaRoute(origin, to);
+  if (!r) return [];
+  return [{
+    from: origin,
+    to,
+    time: `${Math.floor(r.mins / 60)} h ${r.mins % 60} min`,
+    price: `od ${eur(basePrice(r.km, "standard") * 0.7)}`,
+  }];
+});
 
 const features = [
   { icon: Clock, title: "Kursy co 15 minut", text: "W godzinach szczytu na głównych liniach." },
