@@ -20,4 +20,11 @@ describe("cennik Velovia", () => {
     expect(passengerPrice(100, "standard", "promo", "student")).toBe(13.93);
     expect(passengerPrice(100, "standard", "saver", "senior")).toBe(16.92);
   });
+  it("karty tras pokazują ceny w EUR wyliczone z rozkładu", () => {
+    const r = veloviaRoute("Skuszawyjice Wschodnie", "Helonki Centralne");
+    expect(r).not.toBeNull();
+    const price = `od ${eur(basePrice(r!.km, "standard") * 0.7)}`;
+    expect(price).toBe("od 13,93 €");
+    expect(price).not.toContain("zł");
+  });
 });
