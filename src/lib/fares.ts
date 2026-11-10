@@ -17,7 +17,7 @@ const table: [maxKm: number, standard: number, premiere: number, business: numbe
 ];
 
 export function basePrice(km: number, cls: TravelClass): number {
-  const row = table.find((r) => Math.ceil(km) <= r[0]) ?? table[table.length - 1];
+  const row = table.find((r) => Math.ceil(km) <= r[0]) ?? table[table.length - 1]!;
   return row[cls === "standard" ? 1 : cls === "premiere" ? 2 : 3];
 }
 
