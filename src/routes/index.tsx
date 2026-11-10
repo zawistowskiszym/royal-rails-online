@@ -4,7 +4,7 @@ import { ArrowRight, ArrowLeftRight, Calendar, Wifi, Bike, Leaf, Clock, Smartpho
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
 import { TicketFlow } from "@/components/TicketFlow";
-import { veloviaRoute } from "@/lib/timetable";
+import { allSkuszawyjiceStations, stations, veloviaRoute } from "@/lib/timetable";
 import { basePrice, eur } from "@/lib/fares";
 
 export const Route = createFileRoute("/")({
@@ -80,11 +80,11 @@ function Index() {
         </div>
 
         <form id="bilety" onSubmit={(e) => { e.preventDefault(); setOpen(true); }} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
-          <Field label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" />
+          <Field label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" listId="stations-from" options={[allSkuszawyjiceStations, ...stations]} />
           <button type="button" onClick={() => { setFrom(to); setTo(from); }} aria-label="Zamień stacje" className="mx-auto grid h-10 w-10 place-items-center self-center rounded-full bg-secondary transition hover:bg-accent hover:text-accent-foreground">
             <ArrowLeftRight className="h-4 w-4" />
           </button>
-          <Field label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" />
+          <Field label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" listId="stations-to" options={stations} />
           <label className="flex flex-col rounded-xl bg-secondary px-4 py-2.5">
             <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Calendar className="h-3 w-3" /> Kiedy</span>
             <input type="date" className="bg-transparent font-semibold outline-none" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -172,11 +172,14 @@ function Index() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder: string }) {
+function Field({ label, value, onChange, placeholder, listId, options }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; listId: string; options: string[] }) {
   return (
     <label className="flex flex-col rounded-xl bg-secondary px-4 py-2.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="bg-transparent font-semibold outline-none placeholder:text-muted-foreground/60" />
+      <input list={listId} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="bg-transparent font-semibold outline-none placeholder:text-muted-foreground/60" />
+      <datalist id={listId}>
+        {options.map((station) => <option key={station} value={station} />)}
+      </datalist>
     </label>
   );
 }
