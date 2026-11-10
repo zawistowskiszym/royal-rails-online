@@ -4,6 +4,8 @@ import { ArrowRight, ArrowLeftRight, Calendar, Wifi, Bike, Leaf, Clock, Smartpho
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
 import { TicketFlow } from "@/components/TicketFlow";
+import { veloviaRoute } from "@/lib/timetable";
+import { basePrice, eur } from "@/lib/fares";
 
 export const Route = createFileRoute("/")({
   head: () => ({
