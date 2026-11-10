@@ -1,35 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Check, CreditCard, TrainFront, X } from "lucide-react";
-
-export type Dep = { time: string; train: string; to: string; via: string; arrival: string };
-type Conn = { train: string; dep: string; arr: string; to: string; mins: number; price: number };
-
-const ORIGIN = "Skuszawyjice Wschodnie";
-const toMin = (t: string) => { const [h = 0, m = 0] = t.split(":").map(Number); return h * 60 + m; };
-const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-
-function findConnections(deps: Dep[], from: string, to: string): Conn[] {
-  if (from && !norm(ORIGIN).includes(norm(from))) return [];
-  const q = norm(to);
-  const out: Conn[] = [];
-  for (const d of deps) {
-    const stops = [
-      ...d.via.split(" · ").map((s) => { const i = s.lastIndexOf(" "); return { name: s.slice(0, i), time: s.slice(i + 1) }; }),
-      { name: d.to, time: d.arrival },
-    ];
-    const stop = q ? stops.find((s) => norm(s.name).includes(q)) : stops[stops.length - 1];
-    if (!stop) continue;
-    const mins = (toMin(stop.time) - toMin(d.time) + 1440) % 1440;
-    out.push({ train: d.train, dep: d.time, arr: stop.time, to: stop.name, mins, price: Math.round(6 + mins * 0.17) });
-  }
-  return out.sort((a, b) => a.dep.localeCompare(b.dep));
-}
-
-const fares = [
-  { id: "normal", label: "Normalny", factor: 1 },
-  { id: "student", label: "Studencki −51%", factor: 0.49 },
-  { id: "senior", label: "Senior −30%", factor: 0.7 },
-];
+import { findConnections, type Conn } from "@/lib/timetable";
+import { basePrice, classes, concessionAllowed, concessions, eur, fareTypes, passengerPrice, type Concession, type FareType, type TravelClass } from "@/lib/fares";
 
 function FakeQR({ seed }: { seed: string }) {
   const cells = useMemo(() => {
@@ -41,8 +13,7 @@ function FakeQR({ seed }: { seed: string }) {
       <rect width="21" height="21" className="fill-background" />
       {cells.map((v, i) => {
         const x = i % 21, y = Math.floor(i / 21);
-        const finder = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13);
-        if (finder) return null;
+        if ((x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13)) return null;
         return v ? <rect key={i} x={x} y={y} width="1" height="1" className="fill-foreground" /> : null;
       })}
       {([[0, 0], [14, 0], [0, 14]] as const).map(([x, y]) => (
@@ -56,22 +27,27 @@ function FakeQR({ seed }: { seed: string }) {
   );
 }
 
-export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; from: string; to: string; date: string; onClose: () => void }) {
-  const conns = useMemo(() => findConnections(deps, from, to), [deps, from, to]);
+export function TicketFlow({ from, to, date, onClose }: { from: string; to: string; date: string; onClose: () => void }) {
+  const conns = useMemo(() => findConnections(from, to).filter((c) => c.category === "vv"), [from, to]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
-  const [cls, setCls] = useState<1 | 2>(2);
-  const [fare, setFare] = useState("normal");
-  const [count, setCount] = useState(1);
+  const [cls, setCls] = useState<TravelClass>("standard");
+  const [fare, setFare] = useState<FareType>("standard");
+  const [pax, setPax] = useState<Concession[]>(["none"]);
+  const [docOk, setDocOk] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [paying, setPaying] = useState(false);
   const [code] = useState(() => `KK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
 
-  const total = sel ? Math.round(sel.price * (cls === 1 ? 1.5 : 1) * (fares.find((f) => f.id === fare)!.factor) * count * 100) / 100 : 0;
-  const zl = (n: number) => n.toFixed(2).replace(".", ",") + " zł";
+  const allowed = concessionAllowed(fare);
+  const effective = pax.map((p) => (allowed ? p : "none"));
+  const needsDoc = effective.some((p) => p !== "none");
+  const total = sel ? Math.round(effective.reduce((s, p) => s + passengerPrice(sel.km, cls, fare, p), 0) * 100) / 100 : 0;
   const dateLabel = ((s: string) => s.charAt(0).toUpperCase() + s.slice(1))(new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }));
   const input = "w-full rounded-xl bg-secondary px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-primary";
+  const chip = (on: boolean) => `rounded-xl border p-3 text-left text-sm font-semibold ${on ? "border-primary bg-primary/10 text-primary" : "border-border"}`;
+  const fareInfo = fareTypes.find((f) => f.id === fare)!;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center" onClick={onClose}>
@@ -79,9 +55,9 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              {step === "list" ? "Wyniki wyszukiwania" : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
+              {step === "list" ? "Wyniki wyszukiwania · KDP Velovia" : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
             </p>
-            <h2 className="mt-1 text-2xl font-extrabold tracking-tight">{ORIGIN} → {sel?.to ?? (to || "wszystkie kierunki")}</h2>
+            <h2 className="mt-1 text-2xl font-extrabold tracking-tight">{sel?.from ?? from} → {sel?.to ?? to}</h2>
             <p className="text-sm text-muted-foreground">{dateLabel}</p>
           </div>
           <button onClick={onClose} aria-label="Zamknij" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary hover:bg-accent"><X className="h-4 w-4" /></button>
@@ -90,14 +66,14 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
         {step === "list" && (
           <div className="mt-6 space-y-2">
             {conns.length === 0 && (
-              <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak połączeń. Odjazdy prowadzą ze stacji {ORIGIN} — spróbuj np. „Bentach”, „Utroch” lub „Helonki”.</p>
+              <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak bezpośrednich połączeń Velovia na tej trasie. Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
             )}
             {conns.map((c) => (
               <button key={c.train + c.dep} onClick={() => { setSel(c); setStep("details"); }} className="flex w-full items-center gap-4 rounded-2xl border border-border p-4 text-left transition hover:border-primary">
                 <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
-                <div className="flex flex-1 items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min</span><span className="h-px flex-1 bg-border" /></div>
+                <div className="flex flex-1 items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
                 <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
-                <div className="hidden text-right sm:block"><div className="text-xs text-muted-foreground">KDP {c.train}</div><div className="font-bold text-primary">{zl(c.price)}</div></div>
+                <div className="hidden text-right sm:block"><div className="text-xs text-muted-foreground">{c.train}</div><div className="font-bold text-primary">od {eur(basePrice(c.km, "standard") * 0.7)}</div></div>
               </button>
             ))}
           </div>
@@ -105,30 +81,51 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
 
         {step === "details" && sel && (
           <div className="mt-6 space-y-5">
-            <div className="flex items-center gap-3 rounded-2xl bg-secondary p-4"><TrainFront className="h-5 w-5 text-primary" /><span className="font-semibold">KDP {sel.train}</span><span className="ml-auto tabular-nums">{sel.dep} → {sel.arr}</span></div>
+            <div className="flex items-center gap-3 rounded-2xl bg-secondary p-4"><TrainFront className="h-5 w-5 text-primary" /><span className="font-semibold">KDP {sel.train}</span><span className="ml-auto tabular-nums">{sel.dep} → {sel.arr} · {Math.round(sel.km)} km</span></div>
             <div>
               <p className="mb-2 text-sm font-semibold">Klasa</p>
-              <div className="grid grid-cols-2 gap-2">
-                {([2, 1] as const).map((k) => (
-                  <button key={k} onClick={() => setCls(k)} className={`rounded-xl border p-3 font-semibold ${cls === k ? "border-primary bg-primary/10 text-primary" : "border-border"}`}>Klasa {k}{k === 1 && " (+50%)"}</button>
+              <div className="grid grid-cols-3 gap-2">
+                {classes.map((k) => (
+                  <button key={k.id} onClick={() => setCls(k.id)} className={chip(cls === k.id)}>{k.label}<div className="mt-1 text-xs font-normal opacity-70">{eur(basePrice(sel.km, k.id))}</div></button>
                 ))}
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-semibold">Taryfa</p>
-              <div className="grid grid-cols-3 gap-2">
-                {fares.map((f) => (
-                  <button key={f.id} onClick={() => setFare(f.id)} className={`rounded-xl border p-3 text-sm font-semibold ${fare === f.id ? "border-primary bg-primary/10 text-primary" : "border-border"}`}>{f.label}</button>
+              <p className="mb-2 text-sm font-semibold">Wariant taryfowy</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {fareTypes.map((f) => (
+                  <button key={f.id} onClick={() => setFare(f.id)} className={chip(fare === f.id)}>{f.label}<div className="mt-1 text-xs font-normal opacity-70">{eur(passengerPrice(sel.km, cls, f.id, "none"))}</div></button>
                 ))}
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">Zmiana: {fareInfo.change} · Zwrot: {fareInfo.refund}</p>
             </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Liczba pasażerów</p>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setCount(Math.max(1, count - 1))} className="h-9 w-9 rounded-full bg-secondary font-bold">−</button>
-                <span className="w-6 text-center font-bold">{count}</span>
-                <button onClick={() => setCount(Math.min(9, count + 1))} className="h-9 w-9 rounded-full bg-secondary font-bold">+</button>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold">Pasażerowie</p>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setPax(pax.slice(0, -1))} disabled={pax.length < 2} className="h-8 w-8 rounded-full bg-secondary font-bold disabled:opacity-40">−</button>
+                  <span className="w-5 text-center font-bold">{pax.length}</span>
+                  <button onClick={() => setPax([...pax, "none"])} disabled={pax.length > 8} className="h-8 w-8 rounded-full bg-secondary font-bold disabled:opacity-40">+</button>
+                </div>
               </div>
+              {!allowed && <p className="mb-2 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">Ulgi nie łączą się z ofertami PROMO i innymi promocjami. Wybierz STANDARD lub FLEX, aby skorzystać z ulgi.</p>}
+              <div className="space-y-2">
+                {pax.map((p, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="w-24 text-sm text-muted-foreground">Pasażer {i + 1}</span>
+                    <select aria-label={`Ulga pasażera ${i + 1}`} disabled={!allowed} value={allowed ? p : "none"} onChange={(e) => setPax(pax.map((x, j) => (j === i ? (e.target.value as Concession) : x)))} className={`${input} py-2 disabled:opacity-50`}>
+                      {concessions.map((c) => <option key={c.id} value={c.id}>{c.label}{c.discount ? ` −${Math.round(c.discount * 100)}%` : ""}</option>)}
+                    </select>
+                    <span className="w-20 text-right text-sm font-semibold tabular-nums">{eur(passengerPrice(sel.km, cls, fare, effective[i]!))}</span>
+                  </div>
+                ))}
+              </div>
+              {needsDoc && (
+                <label className="mt-3 flex items-start gap-2 text-sm">
+                  <input type="checkbox" checked={docOk} onChange={(e) => setDocOk(e.target.checked)} className="mt-1 accent-primary" />
+                  Potwierdzam, że pasażerowie korzystający z ulgi posiadają dokument potwierdzający prawo do ulgi i okażą go podczas kontroli.
+                </label>
+              )}
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <input className={input} placeholder="Imię i nazwisko" value={name} onChange={(e) => setName(e.target.value)} />
@@ -136,8 +133,8 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
             </div>
             <div className="flex items-center justify-between border-t border-border pt-5">
               <button onClick={() => setStep("list")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
-              <button disabled={!name.trim() || !/\S+@\S+\.\S+/.test(email)} onClick={() => setStep("pay")} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
-                Dalej · {zl(total)} <ArrowRight className="h-4 w-4" />
+              <button disabled={!name.trim() || !/\S+@\S+\.\S+/.test(email) || (needsDoc && !docOk)} onClick={() => setStep("pay")} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
+                Dalej · {eur(total)} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -154,7 +151,7 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
             <div className="flex items-center justify-between border-t border-border pt-5">
               <button type="button" onClick={() => setStep("details")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
               <button disabled={paying} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-                <CreditCard className="h-4 w-4" /> {paying ? "Przetwarzanie…" : `Zapłać ${zl(total)}`}
+                <CreditCard className="h-4 w-4" /> {paying ? "Przetwarzanie…" : `Zapłać ${eur(total)}`}
               </button>
             </div>
           </form>
@@ -167,10 +164,11 @@ export function TicketFlow({ deps, from, to, date, onClose }: { deps: Dep[]; fro
               <div className="space-y-3">
                 <div className="flex items-center gap-2"><span className="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">KDP</span><span className="font-semibold">Velovia {sel.train}</span></div>
                 <div className="text-3xl font-extrabold tabular-nums">{sel.dep} → {sel.arr}</div>
-                <div className="text-sm opacity-80">{ORIGIN} → {sel.to}</div>
+                <div className="text-sm opacity-80">{sel.from} → {sel.to}</div>
                 <div className="text-sm opacity-80">{dateLabel}</div>
-                <div className="text-sm opacity-80">{name} · {count} os. · klasa {cls} · {fares.find((f) => f.id === fare)!.label}</div>
-                <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {zl(total)}</div>
+                <div className="text-sm opacity-80">{name} · {pax.length} os. · {classes.find((c) => c.id === cls)!.label} · {fareInfo.label}</div>
+                {needsDoc && <div className="text-xs opacity-70">Bilet z ulgą — ważny z dokumentem uprawniającym.</div>}
+                <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {eur(total)}</div>
               </div>
               <div className="rounded-xl bg-background p-2"><FakeQR seed={code} /></div>
             </div>

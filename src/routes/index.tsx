@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, ArrowLeftRight, Calendar, Wifi, Bike, Leaf, Clock, Smartphone, Ticket, TrainFront, Zap } from "lucide-react";
+import { ArrowRight, ArrowLeftRight, Calendar, Wifi, Bike, Leaf, Clock, Smartphone, Ticket } from "lucide-react";
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
 import { TicketFlow } from "@/components/TicketFlow";
@@ -26,60 +26,6 @@ const routes = [
   { from: "Skuszawyjice Wschodnie", to: "Helonki Centralne", time: "41 min", price: "od 12 zł" },
 ];
 
-// Rozkład KDP Velovia — odjazdy ze Skuszawyjic Wschodnich (wszystkie dni)
-type Departure = { time: string; train: string; to: string; via: string; arrival: string };
-
-function pad(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-const departures: Departure[] = (() => {
-  const rows: Departure[] = [];
-  for (let h = 6; h <= 22; h++) {
-    if (h <= 22) {
-      rows.push({
-        time: `${pad(h)}:08`,
-        train: `VV ${pad3(1 + 2 * (h - 6))}`,
-        to: "Bentach Główny",
-        via: `Utroch ${pad(h + 1)}:50`,
-        arrival: `${pad((h + 1) % 24)}:02`,
-      });
-    }
-    if (h >= 7) {
-      rows.push({
-        time: `${pad(h)}:12`,
-        train: `VV ${pad3(103 + 4 * (h - 7))}`,
-        to: "Budziszów Główny",
-        via: `Selbert ${pad(h)}:39 · Helonki Centralne ${pad(h)}:53`,
-        arrival: `${pad(h + 1)}:07`,
-      });
-    }
-    if (h <= 21) {
-      rows.push({
-        time: `${pad(h)}:38`,
-        train: `VV ${pad3(69 + 2 * (h - 6))}`,
-        to: "Bizceń Główny",
-        via: `Utroch ${pad(h + 1)}:20 · Bizceń Centralny ${pad(h + 1)}:53`,
-        arrival: `${pad(h + 1)}:54`,
-      });
-    }
-    rows.push({
-      time: `${pad(h)}:42`,
-      train: `VV ${pad3(101 + 4 * (h - 6))}`,
-      to: "Budziszów Główny",
-      via: `Selbert ${pad(h + 1)}:09 · Helonki Centralne ${pad(h + 1)}:23`,
-      arrival: `${pad(h + 1)}:37`,
-    });
-  }
-  return rows.sort((a, b) => a.time.localeCompare(b.time));
-})();
-
-function pad3(n: number) {
-  return String(n).padStart(3, "0");
-}
-
-const destinations = ["Wszystkie", "Bentach Główny", "Bizceń Główny", "Budziszów Główny"];
-
 const features = [
   { icon: Clock, title: "Kursy co 15 minut", text: "W godzinach szczytu na głównych liniach." },
   { icon: Wifi, title: "Darmowe Wi‑Fi", text: "Szybki internet i gniazdka przy każdym fotelu." },
@@ -90,7 +36,6 @@ const features = [
 function Index() {
   const [from, setFrom] = useState("Skuszawyjice Wschodnie");
   const [to, setTo] = useState("");
-  const [dest, setDest] = useState("Wszystkie");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [open, setOpen] = useState(false);
 
@@ -101,7 +46,6 @@ function Index() {
           <img src={logo.url} alt="Koleje Królewskie" className="h-9 w-auto" />
           <nav className="hidden gap-8 text-sm font-medium md:flex">
             <a href="#bilety" className="hover:text-primary">Bilety</a>
-            <a href="#rozklad" className="hover:text-primary">Rozkład</a>
             <a href="#trasy" className="hover:text-primary">Trasy</a>
             <a href="#podroz" className="hover:text-primary">Podróż</a>
             <a href="#aplikacja" className="hover:text-primary">Aplikacja</a>
@@ -140,68 +84,7 @@ function Index() {
             Szukaj <ArrowRight className="h-4 w-4" />
           </button>
         </form>
-        {open && <TicketFlow deps={departures} from={from} to={to} date={date} onClose={() => setOpen(false)} />}
-      </section>
-
-      <section id="rozklad" className="mx-auto max-w-7xl px-5 pt-24">
-        <div className="overflow-hidden rounded-3xl bg-ink text-ink-foreground">
-          <div className="flex flex-col gap-6 border-b border-ink-foreground/10 p-8 md:flex-row md:items-end md:justify-between md:p-12">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground">
-                <Zap className="h-3 w-3" /> KDP Velovia
-              </span>
-              <h2 className="mt-4 text-4xl font-extrabold tracking-tight md:text-5xl">Odjazdy</h2>
-              <p className="mt-2 flex items-center gap-2 text-ink-foreground/60">
-                <TrainFront className="h-4 w-4" /> Skuszawyjice Wschodnie · wszystkie dni
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {destinations.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDest(d)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    dest === d ? "bg-primary text-primary-foreground" : "bg-ink-foreground/10 hover:bg-ink-foreground/20"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="max-h-[560px] overflow-y-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-ink text-xs uppercase tracking-wider text-ink-foreground/50">
-                <tr>
-                  <th className="px-8 py-4 font-semibold md:px-12">Godzina</th>
-                  <th className="px-4 py-4 font-semibold">Pociąg</th>
-                  <th className="px-4 py-4 font-semibold">Do / przez</th>
-                  <th className="hidden px-8 py-4 text-right font-semibold md:table-cell md:px-12">Przyjazd</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink-foreground/10">
-                {departures
-                  .filter((d) => dest === "Wszystkie" || d.to === dest)
-                  .map((d) => (
-                    <tr key={d.train} className="transition hover:bg-ink-foreground/5">
-                      <td className="px-8 py-4 text-lg font-extrabold tabular-nums md:px-12">{d.time}</td>
-                      <td className="px-4 py-4">
-                        <span className="inline-flex items-center gap-2 rounded-lg bg-ink-foreground/10 px-2.5 py-1 font-bold">
-                          <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-extrabold text-primary-foreground">KDP</span>
-                          {d.train}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="font-bold">{d.to}</p>
-                        <p className="mt-0.5 text-xs text-ink-foreground/50">{d.via}</p>
-                      </td>
-                      <td className="hidden px-8 py-4 text-right font-semibold tabular-nums text-ink-foreground/70 md:table-cell md:px-12">{d.arrival}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {open && <TicketFlow from={from} to={to} date={date} onClose={() => setOpen(false)} />}
       </section>
 
       <section id="trasy" className="mx-auto max-w-7xl px-5 py-24">
