@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { basePrice, passengerPrice } from "@/lib/fares";
+import { basePrice, eur, passengerPrice } from "@/lib/fares";
+import { veloviaRoute } from "@/lib/timetable";
 
 describe("cennik Velovia", () => {
   it("cena bazowa wg dystansu i klasy", () => {
