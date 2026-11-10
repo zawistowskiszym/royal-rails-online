@@ -36,6 +36,13 @@ export function findConnections(from: string, to: string): Conn[] {
 
 export type BoardRow = { time: string; train: string; category: string; to: string; via: string };
 
+/** Najszybsze i najkrótsze połączenie Velovia między stacjami (do kart tras). */
+export function veloviaRoute(from: string, to: string): { km: number; mins: number } | null {
+  const cs = findConnections(from, to).filter((c) => c.category === "vv");
+  if (!cs.length) return null;
+  return { km: Math.min(...cs.map((c) => c.km)), mins: Math.min(...cs.map((c) => c.mins)) };
+}
+
 export function departuresFrom(station: string): BoardRow[] {
   const rows: BoardRow[] = [];
   for (const t of trains) {
