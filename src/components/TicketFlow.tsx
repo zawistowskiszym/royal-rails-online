@@ -73,7 +73,10 @@ export function TicketFlow({ from, to, date, onClose }: { from: string; to: stri
               return (
                 <button key={c.train + c.dep} disabled={!isVelovia} onClick={() => { setSel(c); setStep("details"); }} className={`flex w-full items-center gap-4 rounded-2xl border border-border p-4 text-left transition ${isVelovia ? "hover:border-primary" : "cursor-not-allowed opacity-60"}`}>
                   <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
-                  <div className="flex flex-1 items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
+                  <div className="flex flex-1 flex-col gap-1">
+                    <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{categoryNames[c.category] ?? c.category} {c.train}</span>
+                    <div className="flex items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
+                  </div>
                   <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
                   <div className="hidden text-right sm:block">
                     <div className="text-xs text-muted-foreground">{categoryNames[c.category] ?? c.category} {c.train}</div>
