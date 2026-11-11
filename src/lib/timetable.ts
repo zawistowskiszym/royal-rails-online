@@ -41,6 +41,15 @@ export function findConnections(from: string, to: string): Conn[] {
 
 export type BoardRow = { time: string; train: string; category: string; to: string; via: string };
 
+export type StopInfo = { station: string; km: number; arr: string | null; dep: string | null };
+
+/** Pełna trasa pociągu — wszystkie stacje z godzinami przyjazdu/odjazdu. */
+export function trainRoute(trainName: string): StopInfo[] {
+  const t = trains.find((x) => x.n === trainName);
+  if (!t) return [];
+  return t.s.map((s) => ({ station: s[0], km: s[1], arr: s[2], dep: s[3] }));
+}
+
 /** Najszybsze i najkrótsze połączenie Velovia między stacjami (do kart tras). */
 export function veloviaRoute(from: string, to: string): { km: number; mins: number } | null {
   const cs = findConnections(from, to).filter((c) => c.category === "vv");

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Check, CreditCard, TrainFront, X } from "lucide-react";
-import { categoryNames, findConnections, type Conn } from "@/lib/timetable";
+import { ArrowRight, Check, ChevronDown, CreditCard, TrainFront, X } from "lucide-react";
+import { categoryNames, findConnections, trainRoute, type Conn } from "@/lib/timetable";
 import { basePrice, classes, concessionAllowed, concessions, eur, fareTypes, passengerPrice, type Concession, type FareType, type TravelClass } from "@/lib/fares";
 
 function FakeQR({ seed }: { seed: string }) {
@@ -31,6 +31,7 @@ export function TicketFlow({ from, to, date, onClose }: { from: string; to: stri
   const conns = useMemo(() => findConnections(from, to), [from, to]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [cls, setCls] = useState<TravelClass>("standard");
   const [fare, setFare] = useState<FareType>("standard");
   const [pax, setPax] = useState<Concession[]>(["none"]);
@@ -70,21 +71,50 @@ export function TicketFlow({ from, to, date, onClose }: { from: string; to: stri
             )}
             {conns.map((c) => {
               const isVelovia = c.category === "vv";
+              const key = c.train + c.dep;
+              const isOpen = expanded === key;
               return (
-                <button key={c.train + c.dep} disabled={!isVelovia} onClick={() => { setSel(c); setStep("details"); }} className={`flex w-full items-center gap-4 rounded-2xl border border-border p-4 text-left transition ${isVelovia ? "hover:border-primary" : "cursor-not-allowed opacity-60"}`}>
-                  <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
-                  <div className="flex flex-1 flex-col gap-1">
-                    <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{categoryNames[c.category] ?? c.category} {c.train}</span>
-                    <div className="flex items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
+                <div key={key} className={`rounded-2xl border border-border transition ${isVelovia && !isOpen ? "hover:border-primary" : ""} ${isOpen ? "border-primary" : ""}`}>
+                  <div className="flex w-full items-center gap-4 p-4">
+                    <button disabled={!isVelovia} onClick={() => { setSel(c); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${isVelovia ? "" : "cursor-not-allowed opacity-60"}`}>
+                      <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
+                      <div className="flex flex-1 flex-col gap-1">
+                        <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{categoryNames[c.category] ?? c.category} {c.train}</span>
+                        <div className="flex items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
+                      </div>
+                      <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
+                      <div className="hidden text-right sm:block">
+                        {isVelovia
+                          ? <div className="font-bold text-primary">od {eur(basePrice(c.km, "standard") * 0.7)}</div>
+                          : <div className="text-xs font-semibold text-muted-foreground">Sprzedaż wkrótce</div>}
+                      </div>
+                    </button>
+                    <button onClick={() => setExpanded(isOpen ? null : key)} aria-label={isOpen ? "Zwiń trasę" : "Pokaż pełną trasę"} aria-expanded={isOpen} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary hover:bg-accent">
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
                   </div>
-                  <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
-                  <div className="hidden text-right sm:block">
-                    <div className="text-xs text-muted-foreground">{categoryNames[c.category] ?? c.category} {c.train}</div>
-                    {isVelovia
-                      ? <div className="font-bold text-primary">od {eur(basePrice(c.km, "standard") * 0.7)}</div>
-                      : <div className="text-xs font-semibold text-muted-foreground">Sprzedaż wkrótce</div>}
-                  </div>
-                </button>
+                  {isOpen && (
+                    <div className="border-t border-border px-4 py-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pełna trasa · {categoryNames[c.category] ?? c.category} {c.train}</p>
+                      <ol className="space-y-1">
+                        {trainRoute(c.train).map((s, i, arr) => {
+                          const isFrom = s.station === c.from, isTo = s.station === c.to;
+                          const time = s.arr && s.dep ? `${s.arr} / ${s.dep}` : (s.dep ?? s.arr);
+                          return (
+                            <li key={i} className={`flex items-baseline gap-3 text-sm ${isFrom || isTo ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                              <span className="w-20 shrink-0 tabular-nums">{time}</span>
+                              <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${isFrom || isTo ? "bg-primary" : "bg-border"}`} />
+                              <span className="flex-1">{s.station}</span>
+                              <span className="text-xs tabular-nums">{s.km.toFixed(1)} km</span>
+                              {i === 0 && <span className="text-[10px] uppercase">start</span>}
+                              {i === arr.length - 1 && <span className="text-[10px] uppercase">koniec</span>}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
