@@ -1,5 +1,6 @@
 // Cennik Velovia (ceny bazowe w EUR, jedna osoba dorosła, w jedną stronę)
 export type TravelClass = "standard" | "premiere" | "business";
+export type TrainCategory = "vv" | "ic" | "spr";
 export const classes: { id: TravelClass; label: string }[] = [
   { id: "standard", label: "Standard" },
   { id: "premiere", label: "Première" },
@@ -16,6 +17,25 @@ const table: [maxKm: number, standard: number, premiere: number, business: numbe
   [1000, 89.9, 114.9, 149.9],
 ];
 
+// Ceny bazowe EUR w jedną stronę dla Intercity i Sprintera.
+const categoryTables: Record<Exclude<TrainCategory, "vv">, [maxKm: number, standard: number, premiere: number][]> = {
+  ic: [
+    [150, 9.9, 14.9], [250, 14.9, 21.9], [350, 19.9, 28.9], [450, 24.9, 34.9],
+    [600, 29.9, 41.9], [800, 36.9, 51.9], [1000, 44.9, 62.9],
+  ],
+  spr: [
+    [150, 14.9, 22.9], [250, 21.9, 31.9], [350, 29.9, 41.9], [450, 36.9, 49.9],
+    [600, 44.9, 59.9], [800, 54.9, 72.9], [1000, 66.9, 88.9],
+  ],
+};
+
+export function categoryBasePrice(category: TrainCategory, km: number, cls: TravelClass): number {
+  if (category === "vv") return basePrice(km, cls);
+  const rows = categoryTables[category];
+  const row = rows.find((r) => Math.ceil(km) <= r[0]) ?? rows[rows.length - 1]!;
+  return row[cls === "standard" ? 1 : 2];
+}
+
 export function basePrice(km: number, cls: TravelClass): number {
   const row = table.find((r) => Math.ceil(km) <= r[0]) ?? table[table.length - 1]!;
   return row[cls === "standard" ? 1 : cls === "premiere" ? 2 : 3];
@@ -28,6 +48,13 @@ export const fareTypes: { id: FareType; label: string; mult: number; change: str
   { id: "standard", label: "STANDARD", mult: 1, change: "Bezpłatnie do 7 dni przed odjazdem", refund: "Bezpłatnie do 7 dni przed odjazdem", promo: false },
   { id: "flex", label: "FLEX", mult: 1.2, change: "Bezpłatnie do 30 min przed odjazdem", refund: "Bezpłatnie do 30 min przed odjazdem", promo: false },
 ];
+
+export function faresFor(category: TrainCategory) {
+  if (category === "ic") return fareTypes.filter((f) => f.id !== "saver").map((f) => ({
+    ...f, mult: f.id === "promo" ? 0.8 : f.id === "flex" ? 1.15 : 1,
+  }));
+  return fareTypes;
+}
 
 export type Concession = "none" | "child4" | "child12" | "youth" | "student" | "senior" | "disabled" | "carer";
 export const concessions: { id: Concession; label: string; discount: number }[] = [
@@ -44,13 +71,13 @@ export const concessions: { id: Concession; label: string; discount: number }[] 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Ulgi nie łączą się z PROMO ani innymi promocjami (SAVER). */
-export function concessionAllowed(fare: FareType) {
-  return !fareTypes.find((f) => f.id === fare)!.promo;
+export function concessionAllowed(fare: FareType, category: TrainCategory = "vv") {
+  return !faresFor(category).find((f) => f.id === fare)!.promo;
 }
 
-export function passengerPrice(km: number, cls: TravelClass, fare: FareType, concession: Concession): number {
-  const ticket = basePrice(km, cls) * fareTypes.find((f) => f.id === fare)!.mult;
-  const c = concessionAllowed(fare) ? concessions.find((x) => x.id === concession)!.discount : 0;
+export function passengerPrice(km: number, cls: TravelClass, fare: FareType, concession: Concession, category: TrainCategory = "vv"): number {
+  const ticket = categoryBasePrice(category, km, cls) * faresFor(category).find((f) => f.id === fare)!.mult;
+  const c = concessionAllowed(fare, category) ? concessions.find((x) => x.id === concession)!.discount : 0;
   return r2(ticket * (1 - c));
 }
 
