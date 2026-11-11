@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Check, ChevronDown, CreditCard, TrainFront, X } from "lucide-react";
-import { categoryNames, findConnections, trainRoute, type Conn } from "@/lib/timetable";
+import { categoryNames, findConnections, findTransfers, trainRoute, type Conn } from "@/lib/timetable";
 import { basePrice, classes, concessionAllowed, concessions, eur, fareTypes, passengerPrice, type Concession, type FareType, type TravelClass } from "@/lib/fares";
 
 function FakeQR({ seed }: { seed: string }) {
@@ -28,7 +28,7 @@ function FakeQR({ seed }: { seed: string }) {
 }
 
 export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: string; to: string; date: string; time?: string; onClose: () => void }) {
-  const conns = useMemo(() => findConnections(from, to).filter((c) => c.dep >= time), [from, to, time]);
+  const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -67,7 +67,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
         {step === "list" && (
           <div className="mt-6 space-y-2">
             {conns.length === 0 && (
-              <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak bezpośrednich połączeń na tej trasie. Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
+              <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak połączeń na tej trasie (także z przesiadką). Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
             )}
             {conns.map((c) => {
               const isVelovia = c.category === "vv";
@@ -79,7 +79,8 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
                     <button disabled={!isVelovia} onClick={() => { setSel(c); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${isVelovia ? "" : "cursor-not-allowed opacity-60"}`}>
                       <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
                       <div className="flex flex-1 flex-col gap-1">
-                        <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{categoryNames[c.category] ?? c.category} {c.train}</span>
+                        <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{c.legs ? c.legs.map((l) => `${categoryNames[l.category] ?? l.category} ${l.train}`).join(" → ") : `${categoryNames[c.category] ?? c.category} ${c.train}`}</span>
+                        {c.legs && <span className="text-xs font-semibold text-muted-foreground">1 przesiadka · {c.change} · {c.wait} min</span>}
                         <div className="flex items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
                       </div>
                       <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
@@ -95,10 +96,10 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
                   </div>
                   {isOpen && (
                     <div className="border-t border-border px-4 py-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pełna trasa · {categoryNames[c.category] ?? c.category} {c.train}</p>
+                      {(c.legs ?? [c]).map((L) => (<div key={L.train}><p className="mb-2 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pełna trasa · {categoryNames[L.category] ?? L.category} {L.train}</p>
                       <ol className="space-y-1">
-                        {trainRoute(c.train).map((s, i, arr) => {
-                          const isFrom = s.station === c.from, isTo = s.station === c.to;
+                        {trainRoute(L.train).map((s, i, arr) => {
+                          const isFrom = s.station === L.from, isTo = s.station === L.to;
                           const time = s.arr && s.dep ? `${s.arr} / ${s.dep}` : (s.dep ?? s.arr);
                           return (
                             <li key={i} className={`flex items-baseline gap-3 text-sm ${isFrom || isTo ? "font-bold text-foreground" : "text-muted-foreground"}`}>
@@ -111,7 +112,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
                             </li>
                           );
                         })}
-                      </ol>
+                      </ol></div>))}
                     </div>
                   )}
                 </div>
@@ -122,7 +123,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
 
         {step === "details" && sel && (
           <div className="mt-6 space-y-5">
-            <div className="flex items-center gap-3 rounded-2xl bg-secondary p-4"><TrainFront className="h-5 w-5 text-primary" /><span className="font-semibold">KDP {sel.train}</span><span className="ml-auto tabular-nums">{sel.dep} → {sel.arr} · {Math.round(sel.km)} km</span></div>
+            <div className="flex items-center gap-3 rounded-2xl bg-secondary p-4"><TrainFront className="h-5 w-5 text-primary" /><span className="font-semibold">KDP {sel.train}{sel.change ? ` · przesiadka ${sel.change}` : ""}</span><span className="ml-auto tabular-nums">{sel.dep} → {sel.arr} · {Math.round(sel.km)} km</span></div>
             <div>
               <p className="mb-2 text-sm font-semibold">Klasa</p>
               <div className="grid grid-cols-3 gap-2">
