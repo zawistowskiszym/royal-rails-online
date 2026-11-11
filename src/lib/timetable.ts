@@ -13,7 +13,7 @@ export const allSkuszawyjiceStations = "Skuszawyjice — wszystkie stacje";
 export const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l").trim();
 const toMin = (t: string) => { const [h = 0, m = 0] = t.split(":").map(Number); return h * 60 + m; };
 
-export type Conn = { train: string; category: string; from: string; to: string; dep: string; arr: string; mins: number; km: number };
+export type Conn = { train: string; category: string; from: string; to: string; dep: string; arr: string; mins: number; km: number; legs?: Conn[]; change?: string; wait?: number };
 
 const match = (name: string, q: string) => norm(name) === norm(q) || norm(name).includes(norm(q));
 
@@ -37,6 +37,53 @@ export function findConnections(from: string, to: string): Conn[] {
     });
   }
   return out.sort((x, y) => x.dep.localeCompare(y.dep));
+}
+
+/** Połączenia z jedną przesiadką (min. 5 min, maks. 3 h oczekiwania). */
+export function findTransfers(from: string, to: string, minChange = 5, maxWait = 180): Conn[] {
+  if (!from.trim() || !to.trim()) return [];
+  const all = norm(from) === norm(allSkuszawyjiceStations);
+  const isFrom = (n: string) => (all ? norm(n).startsWith(norm("Skuszawyjice ")) : match(n, from));
+  // pociągi dojeżdżające do celu: stacja przesiadki -> [pociąg, idx stacji, idx celu]
+  const toDest = new Map<string, [Train, number, number][]>();
+  for (const u of trains) {
+    const j = u.s.findIndex((s) => s[2] && match(s[0], to));
+    if (j < 0) continue;
+    for (let p = 0; p < j; p++) if (u.s[p]![3]) {
+      const k = u.s[p]![0];
+      if (!toDest.has(k)) toDest.set(k, []);
+      toDest.get(k)!.push([u, p, j]);
+    }
+  }
+  const best = new Map<string, Conn>();
+  for (const t of trains) {
+    const i = t.s.findIndex((s) => s[3] && isFrom(s[0]));
+    if (i < 0 || t.s.some((s, k) => k > i && match(s[0], to))) continue;
+    for (let k = i + 1; k < t.s.length; k++) {
+      const x = t.s[k]!;
+      if (!x[2]) continue;
+      for (const [u, p, j] of toDest.get(x[0]) ?? []) {
+        if (u.n === t.n || isFrom(u.s[p]![0])) continue;
+        const wait = toMin(u.s[p]![3]!) - toMin(x[2]);
+        if (wait < minChange || wait > maxWait) continue;
+        const a = t.s[i]!, b = u.s[j]!, y = u.s[p]!;
+        const leg1: Conn = { train: t.n, category: t.c, from: a[0], to: x[0], dep: a[3]!, arr: x[2], mins: toMin(x[2]) - toMin(a[3]!), km: Math.round((x[1] - a[1]) * 10) / 10 };
+        const leg2: Conn = { train: u.n, category: u.c, from: y[0], to: b[0], dep: y[3]!, arr: b[2]!, mins: toMin(b[2]!) - toMin(y[3]!), km: Math.round((b[1] - y[1]) * 10) / 10 };
+        const c: Conn = {
+          train: `${t.n} + ${u.n}`, category: t.c === "vv" && u.c === "vv" ? "vv" : t.c === u.c ? t.c : "mix",
+          from: a[0], to: b[0], dep: a[3]!, arr: b[2]!, mins: toMin(b[2]!) - toMin(a[3]!),
+          km: Math.round((leg1.km + leg2.km) * 10) / 10, legs: [leg1, leg2], change: x[0], wait,
+        };
+        if (c.mins <= 0) continue;
+        const key = t.n + "|" + u.n;
+        const prev = best.get(key);
+        if (!prev || c.mins < prev.mins) best.set(key, c);
+      }
+    }
+  }
+  // odrzuć warianty gorsze: ten sam odjazd, a później przyjazd
+  const list = [...best.values()].sort((x, y) => x.dep.localeCompare(y.dep) || x.arr.localeCompare(y.arr));
+  return list.filter((c, idx) => !list.some((o, oi) => oi !== idx && o.dep >= c.dep && o.arr <= c.arr && (o.dep > c.dep || o.arr < c.arr)));
 }
 
 export type BoardRow = { time: string; train: string; category: string; to: string; via: string };
