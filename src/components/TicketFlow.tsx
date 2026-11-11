@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Check, CreditCard, TrainFront, X } from "lucide-react";
-import { categoryNames, findConnections, type Conn } from "@/lib/timetable";
+import { ArrowRight, Check, ChevronDown, CreditCard, TrainFront, X } from "lucide-react";
+import { categoryNames, findConnections, trainRoute, type Conn } from "@/lib/timetable";
 import { basePrice, classes, concessionAllowed, concessions, eur, fareTypes, passengerPrice, type Concession, type FareType, type TravelClass } from "@/lib/fares";
 
 function FakeQR({ seed }: { seed: string }) {
@@ -31,6 +31,7 @@ export function TicketFlow({ from, to, date, onClose }: { from: string; to: stri
   const conns = useMemo(() => findConnections(from, to), [from, to]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [cls, setCls] = useState<TravelClass>("standard");
   const [fare, setFare] = useState<FareType>("standard");
   const [pax, setPax] = useState<Concession[]>(["none"]);
