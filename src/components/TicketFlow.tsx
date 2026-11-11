@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Check, CreditCard, TrainFront, X } from "lucide-react";
-import { findConnections, type Conn } from "@/lib/timetable";
+import { categoryNames, findConnections, type Conn } from "@/lib/timetable";
 import { basePrice, classes, concessionAllowed, concessions, eur, fareTypes, passengerPrice, type Concession, type FareType, type TravelClass } from "@/lib/fares";
 
 function FakeQR({ seed }: { seed: string }) {
@@ -28,7 +28,7 @@ function FakeQR({ seed }: { seed: string }) {
 }
 
 export function TicketFlow({ from, to, date, onClose }: { from: string; to: string; date: string; onClose: () => void }) {
-  const conns = useMemo(() => findConnections(from, to).filter((c) => c.category === "vv"), [from, to]);
+  const conns = useMemo(() => findConnections(from, to), [from, to]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
   const [cls, setCls] = useState<TravelClass>("standard");
@@ -55,7 +55,7 @@ export function TicketFlow({ from, to, date, onClose }: { from: string; to: stri
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              {step === "list" ? "Wyniki wyszukiwania · KDP Velovia" : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
+              {step === "list" ? "Wyniki wyszukiwania" : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
             </p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight">{sel?.from ?? from} → {sel?.to ?? to}</h2>
             <p className="text-sm text-muted-foreground">{dateLabel}</p>
@@ -66,16 +66,24 @@ export function TicketFlow({ from, to, date, onClose }: { from: string; to: stri
         {step === "list" && (
           <div className="mt-6 space-y-2">
             {conns.length === 0 && (
-              <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak bezpośrednich połączeń Velovia na tej trasie. Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
+              <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak bezpośrednich połączeń na tej trasie. Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
             )}
-            {conns.map((c) => (
-              <button key={c.train + c.dep} onClick={() => { setSel(c); setStep("details"); }} className="flex w-full items-center gap-4 rounded-2xl border border-border p-4 text-left transition hover:border-primary">
-                <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
-                <div className="flex flex-1 items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
-                <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
-                <div className="hidden text-right sm:block"><div className="text-xs text-muted-foreground">{c.train}</div><div className="font-bold text-primary">od {eur(basePrice(c.km, "standard") * 0.7)}</div></div>
-              </button>
-            ))}
+            {conns.map((c) => {
+              const isVelovia = c.category === "vv";
+              return (
+                <button key={c.train + c.dep} disabled={!isVelovia} onClick={() => { setSel(c); setStep("details"); }} className={`flex w-full items-center gap-4 rounded-2xl border border-border p-4 text-left transition ${isVelovia ? "hover:border-primary" : "cursor-not-allowed opacity-60"}`}>
+                  <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
+                  <div className="flex flex-1 items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
+                  <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
+                  <div className="hidden text-right sm:block">
+                    <div className="text-xs text-muted-foreground">{categoryNames[c.category] ?? c.category} {c.train}</div>
+                    {isVelovia
+                      ? <div className="font-bold text-primary">od {eur(basePrice(c.km, "standard") * 0.7)}</div>
+                      : <div className="text-xs font-semibold text-muted-foreground">Sprzedaż wkrótce</div>}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
 
