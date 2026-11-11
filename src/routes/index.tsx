@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, ArrowLeftRight, Calendar, Wifi, Bike, Leaf, Clock, Smartphone, Ticket } from "lucide-react";
+import { ArrowRight, ArrowLeftRight, Wifi, Bike, Leaf, Clock, Smartphone, Ticket } from "lucide-react";
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
 import { TicketFlow } from "@/components/TicketFlow";
+import { StationField, DateTimeField } from "@/components/SearchFields";
 import { allSkuszawyjiceStations, stations, veloviaRoute } from "@/lib/timetable";
 import { basePrice, eur } from "@/lib/fares";
 
@@ -46,6 +47,7 @@ function Index() {
   const [from, setFrom] = useState("Skuszawyjice Wschodnie");
   const [to, setTo] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(() => `${String(new Date().getHours()).padStart(2, "0")}:00`);
   const [open, setOpen] = useState(false);
 
   return (
@@ -80,20 +82,17 @@ function Index() {
         </div>
 
         <form id="bilety" onSubmit={(e) => { e.preventDefault(); setOpen(true); }} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
-          <Field label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" listId="stations-from" options={[allSkuszawyjiceStations, ...stations]} />
+          <StationField label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" options={[allSkuszawyjiceStations, ...stations]} />
           <button type="button" onClick={() => { setFrom(to); setTo(from); }} aria-label="Zamień stacje" className="mx-auto grid h-10 w-10 place-items-center self-center rounded-full bg-secondary transition hover:bg-accent hover:text-accent-foreground">
             <ArrowLeftRight className="h-4 w-4" />
           </button>
-          <Field label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" listId="stations-to" options={stations} />
-          <label className="flex flex-col rounded-xl bg-secondary px-4 py-2.5">
-            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Calendar className="h-3 w-3" /> Kiedy</span>
-            <input type="date" className="bg-transparent font-semibold outline-none" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
+          <StationField label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" options={stations} />
+          <DateTimeField date={date} time={time} onDate={setDate} onTime={setTime} />
           <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-semibold text-primary-foreground transition hover:opacity-90">
             Szukaj <ArrowRight className="h-4 w-4" />
           </button>
         </form>
-        {open && <TicketFlow from={from} to={to} date={date} onClose={() => setOpen(false)} />}
+        {open && <TicketFlow from={from} to={to} date={date} time={time} onClose={() => setOpen(false)} />}
       </section>
 
       <section id="trasy" className="mx-auto max-w-7xl px-5 py-24">
@@ -169,17 +168,5 @@ function Index() {
         </div>
       </footer>
     </div>
-  );
-}
-
-function Field({ label, value, onChange, placeholder, listId, options }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; listId: string; options: string[] }) {
-  return (
-    <label className="flex flex-col rounded-xl bg-secondary px-4 py-2.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <input list={listId} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="bg-transparent font-semibold outline-none placeholder:text-muted-foreground/60" />
-      <datalist id={listId}>
-        {options.map((station) => <option key={station} value={station} />)}
-      </datalist>
-    </label>
   );
 }

@@ -27,8 +27,8 @@ function FakeQR({ seed }: { seed: string }) {
   );
 }
 
-export function TicketFlow({ from, to, date, onClose }: { from: string; to: string; date: string; onClose: () => void }) {
-  const conns = useMemo(() => findConnections(from, to), [from, to]);
+export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: string; to: string; date: string; time?: string; onClose: () => void }) {
+  const conns = useMemo(() => findConnections(from, to).filter((c) => c.dep >= time), [from, to, time]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
