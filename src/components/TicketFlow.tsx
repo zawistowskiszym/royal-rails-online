@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Check, ChevronDown, CreditCard, TrainFront, X } from "lucide-react";
-import { categoryNames, findConnections, findTransfers, trainRoute, type Conn } from "@/lib/timetable";
-import { basePrice, classes, concessionAllowed, concessions, eur, fareTypes, passengerPrice, type Concession, type FareType, type TravelClass } from "@/lib/fares";
+import { categoryCodes, categoryNames, findConnections, findTransfers, trainRoute, type Conn } from "@/lib/timetable";
+import { categoryBasePrice, classes, concessionAllowed, concessions, eur, faresFor, passengerPrice, type Concession, type FareType, type TrainCategory, type TravelClass } from "@/lib/fares";
 
 function FakeQR({ seed }: { seed: string }) {
   const cells = useMemo(() => {
@@ -28,7 +28,7 @@ function FakeQR({ seed }: { seed: string }) {
 }
 
 export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: string; to: string; date: string; time?: string; onClose: () => void }) {
-  const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time]);
+  const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time && ["vv", "ic", "spr"].includes(c.category)).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -41,14 +41,20 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
   const [paying, setPaying] = useState(false);
   const [code] = useState(() => `KK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
 
-  const allowed = concessionAllowed(fare);
+  const category = (sel?.category ?? "vv") as TrainCategory;
+  const availableClasses = classes.filter((k) => category === "vv" || k.id !== "business");
+  const availableFares = faresFor(category);
+  const classLabel = (id: TravelClass) => category === "ic"
+    ? id === "standard" ? "2. klasa" : "1. klasa"
+    : classes.find((k) => k.id === id)!.label;
+  const allowed = concessionAllowed(fare, category);
   const effective = pax.map((p) => (allowed ? p : "none"));
   const needsDoc = effective.some((p) => p !== "none");
-  const total = sel ? Math.round(effective.reduce((s, p) => s + passengerPrice(sel.km, cls, fare, p), 0) * 100) / 100 : 0;
+  const total = sel ? Math.round(effective.reduce((s, p) => s + passengerPrice(sel.km, cls, fare, p, category), 0) * 100) / 100 : 0;
   const dateLabel = ((s: string) => s.charAt(0).toUpperCase() + s.slice(1))(new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }));
   const input = "w-full rounded-xl bg-secondary px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-primary";
   const chip = (on: boolean) => `rounded-xl border p-3 text-left text-sm font-semibold ${on ? "border-primary bg-primary/10 text-primary" : "border-border"}`;
-  const fareInfo = fareTypes.find((f) => f.id === fare)!;
+  const fareInfo = availableFares.find((f) => f.id === fare) ?? availableFares[0]!;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center" onClick={onClose}>
@@ -71,12 +77,13 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
             )}
             {conns.map((c) => {
               const isVelovia = c.category === "vv";
+              const ticketable = !c.legs && ["vv", "ic", "spr"].includes(c.category);
               const key = c.train + c.dep;
               const isOpen = expanded === key;
               return (
                 <div key={key} className={`rounded-2xl border border-border transition ${isVelovia && !isOpen ? "hover:border-primary" : ""} ${isOpen ? "border-primary" : ""}`}>
                   <div className="flex w-full items-center gap-4 p-4">
-                    <button disabled={!isVelovia} onClick={() => { setSel(c); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${isVelovia ? "" : "cursor-not-allowed opacity-60"}`}>
+                    <button disabled={!ticketable} onClick={() => { setSel(c); setCls("standard"); setFare("standard"); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${ticketable ? "" : "cursor-not-allowed opacity-60"}`}>
                       <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
                       <div className="flex flex-1 flex-col gap-1">
                         <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{c.legs ? c.legs.map((l) => `${categoryNames[l.category] ?? l.category} ${l.train}`).join(" → ") : `${categoryNames[c.category] ?? c.category} ${c.train}`}</span>
@@ -85,8 +92,8 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
                       </div>
                       <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
                       <div className="hidden text-right sm:block">
-                        {isVelovia
-                          ? <div className="font-bold text-primary">od {eur(basePrice(c.km, "standard") * 0.7)}</div>
+                        {ticketable
+                          ? <div className="font-bold text-primary">od {eur(categoryBasePrice(c.category as TrainCategory, c.km, "standard") * (c.category === "ic" ? 0.8 : 0.7))}</div>
                           : <div className="text-xs font-semibold text-muted-foreground">Sprzedaż wkrótce</div>}
                       </div>
                     </button>
@@ -123,20 +130,20 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
 
         {step === "details" && sel && (
           <div className="mt-6 space-y-5">
-            <div className="flex items-center gap-3 rounded-2xl bg-secondary p-4"><TrainFront className="h-5 w-5 text-primary" /><span className="font-semibold">KDP {sel.train}{sel.change ? ` · przesiadka ${sel.change}` : ""}</span><span className="ml-auto tabular-nums">{sel.dep} → {sel.arr} · {Math.round(sel.km)} km</span></div>
+            <div className="flex items-center gap-3 rounded-2xl bg-secondary p-4"><TrainFront className="h-5 w-5 text-primary" /><span className="font-semibold">{categoryNames[category] ?? category} {sel.train}{sel.change ? ` · przesiadka ${sel.change}` : ""}</span><span className="ml-auto tabular-nums">{sel.dep} → {sel.arr} · {Math.round(sel.km)} km</span></div>
             <div>
               <p className="mb-2 text-sm font-semibold">Klasa</p>
-              <div className="grid grid-cols-3 gap-2">
-                {classes.map((k) => (
-                  <button key={k.id} onClick={() => setCls(k.id)} className={chip(cls === k.id)}>{k.label}<div className="mt-1 text-xs font-normal opacity-70">{eur(basePrice(sel.km, k.id))}</div></button>
+              <div className={`grid gap-2 ${availableClasses.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                {availableClasses.map((k) => (
+                  <button key={k.id} onClick={() => setCls(k.id)} className={chip(cls === k.id)}>{classLabel(k.id)}<div className="mt-1 text-xs font-normal opacity-70">{eur(categoryBasePrice(category, sel.km, k.id))}</div></button>
                 ))}
               </div>
             </div>
             <div>
               <p className="mb-2 text-sm font-semibold">Wariant taryfowy</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {fareTypes.map((f) => (
-                  <button key={f.id} onClick={() => setFare(f.id)} className={chip(fare === f.id)}>{f.label}<div className="mt-1 text-xs font-normal opacity-70">{eur(passengerPrice(sel.km, cls, f.id, "none"))}</div></button>
+                {availableFares.map((f) => (
+                  <button key={f.id} onClick={() => setFare(f.id)} className={chip(fare === f.id)}>{f.label}<div className="mt-1 text-xs font-normal opacity-70">{eur(passengerPrice(sel.km, cls, f.id, "none", category))}</div></button>
                 ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Zmiana: {fareInfo.change} · Zwrot: {fareInfo.refund}</p>
@@ -158,7 +165,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
                     <select aria-label={`Ulga pasażera ${i + 1}`} disabled={!allowed} value={allowed ? p : "none"} onChange={(e) => setPax(pax.map((x, j) => (j === i ? (e.target.value as Concession) : x)))} className={`${input} py-2 disabled:opacity-50`}>
                       {concessions.map((c) => <option key={c.id} value={c.id}>{c.label}{c.discount ? ` −${Math.round(c.discount * 100)}%` : ""}</option>)}
                     </select>
-                    <span className="w-20 text-right text-sm font-semibold tabular-nums">{eur(passengerPrice(sel.km, cls, fare, effective[i]!))}</span>
+                    <span className="w-20 text-right text-sm font-semibold tabular-nums">{eur(passengerPrice(sel.km, cls, fare, effective[i]!, category))}</span>
                   </div>
                 ))}
               </div>
@@ -204,11 +211,11 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
             <div className="flex items-center gap-2 font-semibold text-primary"><Check className="h-5 w-5" /> Bilet kupiony</div>
             <div className="mt-4 grid gap-6 rounded-2xl bg-ink p-6 text-ink-foreground sm:grid-cols-[1fr_auto]">
               <div className="space-y-3">
-                <div className="flex items-center gap-2"><span className="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">KDP</span><span className="font-semibold">Velovia {sel.train}</span></div>
+                <div className="flex items-center gap-2"><span className="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{categoryCodes[category]}</span><span className="font-semibold">{categoryNames[category] ?? category} {sel.train}</span></div>
                 <div className="text-3xl font-extrabold tabular-nums">{sel.dep} → {sel.arr}</div>
                 <div className="text-sm opacity-80">{sel.from} → {sel.to}</div>
                 <div className="text-sm opacity-80">{dateLabel}</div>
-                <div className="text-sm opacity-80">{name} · {pax.length} os. · {classes.find((c) => c.id === cls)!.label} · {fareInfo.label}</div>
+                <div className="text-sm opacity-80">{name} · {pax.length} os. · {classLabel(cls)} · {fareInfo.label}</div>
                 {needsDoc && <div className="text-xs opacity-70">Bilet z ulgą — ważny z dokumentem uprawniającym.</div>}
                 <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {eur(total)}</div>
               </div>
