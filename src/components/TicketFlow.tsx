@@ -52,7 +52,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [paying, setPaying] = useState(false);
-  const [code] = useState(() => `KK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
+  const [code] = useState(() => `KK-${Math.random().toString(36).slice(2, 10).toUpperCase()}`);
 
   const category = (sel?.category ?? "vv") as TrainCategory;
   const availableClasses = classes.filter((k) => category === "vv" || k.id !== "business");
@@ -217,7 +217,15 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
         )}
 
         {step === "pay" && sel && (
-          <form className="mt-6 space-y-4" onSubmit={(e) => { e.preventDefault(); setPaying(true); setTimeout(() => { setPaying(false); setStep("done"); }, 1200); }}>
+          <form className="mt-6 space-y-4" onSubmit={(e) => { e.preventDefault(); setPaying(true); setTimeout(() => {
+            try {
+              const saved = JSON.parse(window.localStorage.getItem("kk-demo-tickets") ?? "[]");
+              const tickets = Array.isArray(saved) ? saved : [];
+              tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, total: eur(total), status: "active" });
+              window.localStorage.setItem("kk-demo-tickets", JSON.stringify(tickets));
+            } catch { /* Demo checkout can still finish if browser storage is unavailable. */ }
+            setPaying(false); setStep("done");
+          }, 1200); }}>
             <p className="rounded-xl bg-secondary p-3 text-sm text-muted-foreground">Płatność pokazowa — żadne pieniądze nie zostaną pobrane.</p>
             <input className={input} placeholder="Numer karty" defaultValue="4242 4242 4242 4242" required />
             <div className="grid grid-cols-2 gap-2">
