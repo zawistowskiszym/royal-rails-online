@@ -7,10 +7,10 @@ type Search = { from: string; to: string; date: string; time: string };
 
 export const Route = createFileRoute("/wyniki")({
   validateSearch: (s: Record<string, unknown>): Search => ({
-    from: String(s.from ?? ""),
-    to: String(s.to ?? ""),
-    date: String(s.date ?? new Date().toISOString().slice(0, 10)),
-    time: String(s.time ?? "00:00"),
+    from: String(s["from"] ?? ""),
+    to: String(s["to"] ?? ""),
+    date: String(s["date"] ?? new Date().toISOString().slice(0, 10)),
+    time: String(s["time"] ?? "00:00"),
   }),
   head: () => ({
     meta: [
