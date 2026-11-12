@@ -70,7 +70,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const fareInfo = availableFares.find((f) => f.id === fare) ?? availableFares[0]!;
 
   return (
-    <div className={page ? "mx-auto max-w-3xl px-5 py-10" : "fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center"} onClick={page ? undefined : onClose}>
+    <div className={page ? "mx-auto max-w-6xl px-5 py-10" : "fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center"} onClick={page ? undefined : onClose}>
       <div role={page ? "main" : "dialog"} aria-label="Zakup biletu" className={page ? "w-full rounded-3xl border border-border bg-card p-6 md:p-8" : "max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card p-6 shadow-2xl md:rounded-3xl md:p-8"} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -84,20 +84,35 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
         </div>
 
         {step === "list" && (
-          <div className="mt-6 space-y-2">
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-secondary p-3 text-sm">
-              <span className="font-semibold text-muted-foreground">Sortuj:</span>
-              {([["dep", "Godzina"], ["mins", "Czas przejazdu"], ["price", "Cena"]] as const).map(([id, l]) => (
-                <button key={id} onClick={() => setSortBy(id)} className={`rounded-full px-3 py-1 text-xs font-semibold ${sortBy === id ? "bg-primary text-primary-foreground" : "bg-background"}`}>{l}</button>
-              ))}
-              <span className="ml-auto flex flex-wrap gap-2">
-                <select aria-label="Klasa" value={listCls} onChange={(e) => setListCls(e.target.value as TravelClass)} className="rounded-full bg-background px-3 py-1 text-xs font-semibold">
-                  {classes.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
-                </select>
-                <select aria-label="Taryfa" value={listFare} onChange={(e) => setListFare(e.target.value as FareType)} className="rounded-full bg-background px-3 py-1 text-xs font-semibold">
-                  {faresFor("vv").map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-                </select>
-              </span>
+          <div className="mt-8">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-primary">Połączenia</p>
+                <p className="mt-1 text-lg font-bold">{conns.length} {conns.length === 1 ? "połączenie" : conns.length > 1 && conns.length < 5 ? "połączenia" : "połączeń"}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">{passengers} {passengers === 1 ? "pasażer" : "pasażerów"} · ceny łączne w EUR</p>
+            </div>
+            <div className="mb-4 grid gap-4 rounded-2xl border border-border bg-card p-4 md:grid-cols-[1fr_auto] md:items-end">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sortuj po</p>
+                <div className="flex flex-wrap gap-2">
+                  {([["dep", "Godzinie"], ["mins", "Czasie przejazdu"], ["price", "Cenie"]] as const).map(([id, l]) => (
+                    <button key={id} onClick={() => setSortBy(id)} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${sortBy === id ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Klasa
+                  <select aria-label="Klasa" value={listCls} onChange={(e) => setListCls(e.target.value as TravelClass)} className="min-w-36 rounded-xl bg-secondary px-3 py-2 text-sm text-foreground">
+                    {classes.map((k) => <option key={k.id} value={k.id}>{k.id === "standard" ? "2. klasa / Standard" : k.id === "premiere" ? "1. klasa / Première" : k.label}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Taryfa
+                  <select aria-label="Taryfa" value={listFare} onChange={(e) => setListFare(e.target.value as FareType)} className="min-w-32 rounded-xl bg-secondary px-3 py-2 text-sm text-foreground">
+                    {faresFor("vv").map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </select>
+                </label>
+              </div>
             </div>
             {conns.length === 0 && (
               <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak połączeń na tej trasie (także z przesiadką). Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
@@ -105,29 +120,65 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             {sorted.map((c) => {
               const isVelovia = c.category === "vv";
               const ticketable = !c.legs && ["vv", "ic", "spr"].includes(c.category);
-              const key = c.train + c.dep;
+              const key = `${c.train}-${c.dep}-${c.from}`;
               const isOpen = expanded === key;
+              const price = priceOf(c);
+              const fit = fitFor(c.legs ? "vv" : c.category);
+              const serviceLabel = c.legs
+                ? c.legs.map((l) => `${categoryNames[l.category] ?? l.category} ${l.train}`).join(" → ")
+                : `${categoryNames[c.category] ?? c.category} ${c.train}`;
+              const selectedClassLabel = c.category === "ic"
+                ? fit.c === "standard" ? "2. klasa" : "1. klasa"
+                : classes.find((k) => k.id === fit.c)!.label;
               return (
-                <div key={key} className={`rounded-2xl border border-border transition ${isVelovia && !isOpen ? "hover:border-primary" : ""} ${isOpen ? "border-primary" : ""}`}>
-                  <div className="flex w-full items-center gap-4 p-4">
-                    <button disabled={!ticketable} onClick={() => { setSel(c); const fit = fitFor(c.category); setCls(fit.c); setFare(fit.f); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${ticketable ? "" : "cursor-not-allowed opacity-60"}`}>
-                      <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
-                      <div className="flex flex-1 flex-col gap-1">
-                        <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{c.legs ? c.legs.map((l) => `${categoryNames[l.category] ?? l.category} ${l.train}`).join(" → ") : `${categoryNames[c.category] ?? c.category} ${c.train}`}</span>
-                        <span className="text-xs font-semibold text-muted-foreground">{c.legs ? `1 przesiadka · ${c.change} · ${c.wait} min` : "Bez przesiadek"}</span>
-                        <div className="flex items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
+                <article key={key} className={`overflow-hidden rounded-2xl border bg-card transition ${isOpen ? "border-primary shadow-md" : "border-border hover:border-primary/50 hover:shadow-sm"}`}>
+                  <div className="grid md:grid-cols-[minmax(0,1fr)_190px]">
+                    <div className="min-w-0 p-4 sm:p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>{serviceLabel}</span>
+                        <span className="text-xs font-medium text-muted-foreground">{Math.round(c.km)} km</span>
                       </div>
-                      <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
-                      <div className="min-w-24 text-right">
-                        {(() => { const pr = priceOf(c); const fit = fitFor(c.legs ? "vv" : c.category); return pr != null
-                          ? <><div className="font-bold text-primary">{eur(pr)}</div><div className="text-[10px] font-semibold uppercase text-muted-foreground">{c.category === "ic" ? (fit.c === "standard" ? "2. klasa" : "1. klasa") : classes.find((k) => k.id === fit.c)!.label} · {fit.f.toUpperCase()}{passengers > 1 ? ` · ${passengers} os.` : ""}</div>{!ticketable && <div className="text-[10px] text-muted-foreground">2 bilety · sprzedaż wkrótce</div>}</>
-                          : <div className="text-xs font-semibold text-muted-foreground">{c.category === "kr" ? "Sprzedaż u przewoźnika" : "Sprzedaż wkrótce"}</div>; })()}
+                      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_minmax(72px,0.6fr)_minmax(0,1fr)] items-center gap-2 sm:gap-4">
+                        <div className="min-w-0">
+                          <p className="text-2xl font-extrabold tabular-nums sm:text-3xl">{c.dep}</p>
+                          <p className="mt-1 truncate text-sm font-semibold" title={c.from}>{c.from}</p>
+                          <p className="text-[11px] text-muted-foreground">Odjazd</p>
+                        </div>
+                        <div className="min-w-0 text-center">
+                          <p className="text-xs font-semibold text-muted-foreground">{Math.floor(c.mins / 60)} h {String(c.mins % 60).padStart(2, "0")} min</p>
+                          <div className="relative my-2 flex items-center">
+                            <span className="h-2 w-2 rounded-full border-2 border-primary bg-background" />
+                            <span className="h-px flex-1 bg-primary/40" />
+                            <TrainFront className="mx-1 h-4 w-4 shrink-0 text-primary" />
+                            <span className="h-px flex-1 bg-primary/40" />
+                            <span className="h-2 w-2 rounded-full bg-primary" />
+                          </div>
+                          <p className="truncate text-[11px] font-semibold text-muted-foreground">{c.legs ? `${c.change} · ${c.wait} min` : "Bez przesiadek"}</p>
+                        </div>
+                        <div className="min-w-0 text-right">
+                          <p className="text-2xl font-extrabold tabular-nums sm:text-3xl">{c.arr}</p>
+                          <p className="mt-1 truncate text-sm font-semibold" title={c.to}>{c.to}</p>
+                          <p className="text-[11px] text-muted-foreground">Przyjazd</p>
+                        </div>
                       </div>
-                    </button>
-                    <button onClick={() => setExpanded(isOpen ? null : key)} aria-label={isOpen ? "Zwiń trasę" : "Pokaż pełną trasę"} aria-expanded={isOpen} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary hover:bg-accent">
-                      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                    </button>
+                    </div>
+                    <aside className="flex flex-row items-center justify-between gap-3 border-t border-border bg-secondary/40 p-4 md:flex-col md:items-stretch md:justify-center md:border-l md:border-t-0 md:p-5">
+                      <div className="min-w-0">
+                        {price != null ? <>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Łącznie · {passengers} os.</p>
+                          <p className="mt-0.5 text-2xl font-extrabold tracking-tight text-primary">{eur(price)}</p>
+                          <p className="truncate text-xs font-medium text-muted-foreground">{selectedClassLabel} · {fit.f.toUpperCase()}{!ticketable && " · 2 bilety"}</p>
+                        </> : <p className="text-sm font-semibold text-muted-foreground">{c.category === "kr" ? "Sprzedaż u przewoźnika" : "Sprzedaż wkrótce"}</p>}
+                      </div>
+                      <button disabled={!ticketable} onClick={() => { setSel(c); const selected = fitFor(c.category); setCls(selected.c); setFare(selected.f); setStep("details"); }} className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground">
+                        {ticketable ? "Wybierz" : c.category === "kr" ? "U operatora" : "Niedostępne"}
+                      </button>
+                    </aside>
                   </div>
+                  <button onClick={() => setExpanded(isOpen ? null : key)} aria-label={isOpen ? "Zwiń pełną trasę" : "Pokaż pełną trasę"} aria-expanded={isOpen} className="flex w-full items-center justify-between border-t border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary/60 hover:text-foreground">
+                    <span>{isOpen ? "Zwiń pełną trasę" : "Pokaż pełną trasę"}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  </button>
                   {isOpen && (
                     <div className="border-t border-border px-4 py-3">
                       {(c.legs ?? [c]).map((L) => (<div key={L.train}><p className="mb-2 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pełna trasa · {categoryNames[L.category] ?? L.category} {L.train}</p>
@@ -149,7 +200,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                       </ol></div>))}
                     </div>
                   )}
-                </div>
+                </article>
               );
             })}
           </div>
