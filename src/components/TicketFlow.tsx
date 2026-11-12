@@ -120,7 +120,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                       <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
                       <div className="min-w-24 text-right">
                         {(() => { const pr = priceOf(c); const fit = fitFor(c.legs ? "vv" : c.category); return pr != null
-                          ? <><div className="font-bold text-primary">{eur(pr)}</div><div className="text-[10px] font-semibold uppercase text-muted-foreground">{c.category === "ic" ? (fit.c === "standard" ? "2. klasa" : "1. klasa") : classes.find((k) => k.id === fit.c)!.label} · {fit.f}{passengers > 1 ? ` · ${passengers} os.` : ""}</div>{!ticketable && <div className="text-[10px] text-muted-foreground">2 bilety · sprzedaż wkrótce</div>}</>
+                          ? <><div className="font-bold text-primary">{eur(pr)}</div><div className="text-[10px] font-semibold uppercase text-muted-foreground">{c.category === "ic" ? (fit.c === "standard" ? "2. klasa" : "1. klasa") : classes.find((k) => k.id === fit.c)!.label} · {fit.f.toUpperCase()}{passengers > 1 ? ` · ${passengers} os.` : ""}</div>{!ticketable && <div className="text-[10px] text-muted-foreground">2 bilety · sprzedaż wkrótce</div>}</>
                           : <div className="text-xs font-semibold text-muted-foreground">{c.category === "kr" ? "Sprzedaż u przewoźnika" : "Sprzedaż wkrótce"}</div>; })()}
                       </div>
                     </button>
