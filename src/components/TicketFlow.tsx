@@ -33,6 +33,19 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const [sel, setSel] = useState<Conn | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [cls, setCls] = useState<TravelClass>("standard");
+  const [sortBy, setSortBy] = useState<"dep" | "mins" | "price">("dep");
+  const [listCls, setListCls] = useState<TravelClass>("standard");
+  const [listFare, setListFare] = useState<FareType>("standard");
+  const fitFor = (cat: string) => ({
+    c: (cat !== "vv" && listCls === "business" ? "premiere" : listCls) as TravelClass,
+    f: (faresFor(cat as TrainCategory).some((x) => x.id === listFare) ? listFare : "standard") as FareType,
+  });
+  const priceOf = (c: Conn): number | null => {
+    const parts = c.legs ?? [c];
+    if (!parts.every((l) => ["vv", "ic", "spr"].includes(l.category))) return null;
+    return Math.round(parts.reduce((sum, l) => { const { c: k, f } = fitFor(l.category); return sum + passengerPrice(l.km, k, f, "none", l.category as TrainCategory); }, 0) * passengers * 100) / 100;
+  };
+  const sorted = [...conns].sort((a, b) => sortBy === "dep" ? a.dep.localeCompare(b.dep) : sortBy === "mins" ? a.mins - b.mins : (priceOf(a) ?? 1e9) - (priceOf(b) ?? 1e9));
   const [fare, setFare] = useState<FareType>("standard");
   const [pax, setPax] = useState<Concession[]>(() => Array.from({ length: Math.max(1, Math.min(8, passengers)) }, () => "none" as Concession));
   const [docOk, setDocOk] = useState(false);
@@ -72,10 +85,24 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
 
         {step === "list" && (
           <div className="mt-6 space-y-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-secondary p-3 text-sm">
+              <span className="font-semibold text-muted-foreground">Sortuj:</span>
+              {([["dep", "Godzina"], ["mins", "Czas przejazdu"], ["price", "Cena"]] as const).map(([id, l]) => (
+                <button key={id} onClick={() => setSortBy(id)} className={`rounded-full px-3 py-1 text-xs font-semibold ${sortBy === id ? "bg-primary text-primary-foreground" : "bg-background"}`}>{l}</button>
+              ))}
+              <span className="ml-auto flex flex-wrap gap-2">
+                <select aria-label="Klasa" value={listCls} onChange={(e) => setListCls(e.target.value as TravelClass)} className="rounded-full bg-background px-3 py-1 text-xs font-semibold">
+                  {classes.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                </select>
+                <select aria-label="Taryfa" value={listFare} onChange={(e) => setListFare(e.target.value as FareType)} className="rounded-full bg-background px-3 py-1 text-xs font-semibold">
+                  {faresFor("vv").map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                </select>
+              </span>
+            </div>
             {conns.length === 0 && (
               <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak połączeń na tej trasie (także z przesiadką). Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
             )}
-            {conns.map((c) => {
+            {sorted.map((c) => {
               const isVelovia = c.category === "vv";
               const ticketable = !c.legs && ["vv", "ic", "spr"].includes(c.category);
               const key = c.train + c.dep;
@@ -83,18 +110,18 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
               return (
                 <div key={key} className={`rounded-2xl border border-border transition ${isVelovia && !isOpen ? "hover:border-primary" : ""} ${isOpen ? "border-primary" : ""}`}>
                   <div className="flex w-full items-center gap-4 p-4">
-                    <button disabled={!ticketable} onClick={() => { setSel(c); setCls("standard"); setFare("standard"); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${ticketable ? "" : "cursor-not-allowed opacity-60"}`}>
+                    <button disabled={!ticketable} onClick={() => { setSel(c); const fit = fitFor(c.category); setCls(fit.c); setFare(fit.f); setStep("details"); }} className={`flex flex-1 items-center gap-4 text-left ${ticketable ? "" : "cursor-not-allowed opacity-60"}`}>
                       <div className="text-2xl font-extrabold tabular-nums">{c.dep}</div>
                       <div className="flex flex-1 flex-col gap-1">
                         <span className={`w-fit rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isVelovia ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>{c.legs ? c.legs.map((l) => `${categoryNames[l.category] ?? l.category} ${l.train}`).join(" → ") : `${categoryNames[c.category] ?? c.category} ${c.train}`}</span>
-                        {c.legs && <span className="text-xs font-semibold text-muted-foreground">1 przesiadka · {c.change} · {c.wait} min</span>}
+                        <span className="text-xs font-semibold text-muted-foreground">{c.legs ? `1 przesiadka · ${c.change} · ${c.wait} min` : "Bez przesiadek"}</span>
                         <div className="flex items-center gap-2 text-muted-foreground"><span className="h-px flex-1 bg-border" /><span className="text-xs">{Math.floor(c.mins / 60)} h {c.mins % 60} min · {Math.round(c.km)} km</span><span className="h-px flex-1 bg-border" /></div>
                       </div>
                       <div className="text-2xl font-extrabold tabular-nums">{c.arr}</div>
-                      <div className="hidden text-right sm:block">
-                        {ticketable
-                          ? <div className="font-bold text-primary">od {eur(categoryBasePrice(c.category as TrainCategory, c.km, "standard") * (c.category === "ic" ? 0.8 : 0.7))}</div>
-                          : <div className="text-xs font-semibold text-muted-foreground">Sprzedaż wkrótce</div>}
+                      <div className="min-w-24 text-right">
+                        {(() => { const pr = priceOf(c); const fit = fitFor(c.legs ? "vv" : c.category); return pr != null
+                          ? <><div className="font-bold text-primary">{eur(pr)}</div><div className="text-[10px] font-semibold uppercase text-muted-foreground">{c.category === "ic" ? (fit.c === "standard" ? "2. klasa" : "1. klasa") : classes.find((k) => k.id === fit.c)!.label} · {fit.f}{passengers > 1 ? ` · ${passengers} os.` : ""}</div>{!ticketable && <div className="text-[10px] text-muted-foreground">2 bilety · sprzedaż wkrótce</div>}</>
+                          : <div className="text-xs font-semibold text-muted-foreground">{c.category === "kr" ? "Sprzedaż u przewoźnika" : "Sprzedaż wkrótce"}</div>; })()}
                       </div>
                     </button>
                     <button onClick={() => setExpanded(isOpen ? null : key)} aria-label={isOpen ? "Zwiń trasę" : "Pokaż pełną trasę"} aria-expanded={isOpen} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary hover:bg-accent">
