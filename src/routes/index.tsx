@@ -47,7 +47,15 @@ function Index() {
   const [to, setTo] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(() => `${String(new Date().getHours()).padStart(2, "0")}:00`);
+  const [round, setRound] = useState(false);
+  const [retDate, setRetDate] = useState(() => new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10));
+  const [retTime, setRetTime] = useState("16:00");
+  const [pax, setPax] = useState(1);
+  const [cars, setCars] = useState<string[]>(["vv", "ic", "spr"]);
   const navigate = useNavigate();
+  const carrierOpts = [["vv", "Velovia"], ["ic", "Intercity"], ["spr", "Sprinter"], ["kr", "Krukolej"]] as const;
+  const toggleCar = (c: string) => setCars((p) => (p.includes(c) ? (p.length > 1 ? p.filter((x) => x !== c) : p) : [...p, c]));
+  const pill = (on: boolean) => `rounded-full border px-3 py-1.5 text-xs font-semibold transition ${on ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary"}`;
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
@@ -80,16 +88,35 @@ function Index() {
           </div>
         </div>
 
-        <form id="bilety" onSubmit={(e) => { e.preventDefault(); navigate({ to: "/wyniki", search: { from, to, date, time } }); }} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
+        <form id="bilety" onSubmit={(e) => { e.preventDefault(); navigate({ to: "/wyniki", search: { from, to, date, time, ret: round ? retDate : "", rtime: retTime, pax, cars: cars.join(",") } }); }} className="relative z-10 mx-auto -mt-10 max-w-5xl rounded-2xl border border-border bg-card p-3 shadow-2xl">
+          <div className="flex flex-wrap items-center gap-2 px-1 pb-3">
+            <button type="button" onClick={() => setRound(false)} className={pill(!round)}>W jedną stronę</button>
+            <button type="button" onClick={() => setRound(true)} className={pill(round)}>Tam i z powrotem</button>
+            <span className="mx-2 h-5 w-px bg-border" />
+            <span className="text-xs font-semibold text-muted-foreground">Pasażerowie</span>
+            <button type="button" aria-label="Mniej pasażerów" onClick={() => setPax((n) => Math.max(1, n - 1))} className="grid h-7 w-7 place-items-center rounded-full bg-secondary font-bold">−</button>
+            <span className="w-5 text-center text-sm font-bold">{pax}</span>
+            <button type="button" aria-label="Więcej pasażerów" onClick={() => setPax((n) => Math.min(8, n + 1))} className="grid h-7 w-7 place-items-center rounded-full bg-secondary font-bold">+</button>
+            <span className="mx-2 h-5 w-px bg-border" />
+            {carrierOpts.map(([id, l]) => <button key={id} type="button" onClick={() => toggleCar(id)} className={pill(cars.includes(id))}>{l}</button>)}
+          </div>
+          <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr_200px_auto]">
           <StationField label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" options={[allSkuszawyjiceStations, ...stations]} />
           <button type="button" onClick={() => { setFrom(to); setTo(from); }} aria-label="Zamień stacje" className="mx-auto grid h-10 w-10 place-items-center self-center rounded-full bg-secondary transition hover:bg-accent hover:text-accent-foreground">
             <ArrowLeftRight className="h-4 w-4" />
           </button>
-          <StationField label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" options={stations} />
+          <StationField label="Dokąd" value={to} onChange={setTo} placeholder="Stacja docelowa" options={[allSkuszawyjiceStations, ...stations]} />
           <DateTimeField date={date} time={time} onDate={setDate} onTime={setTime} />
           <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-semibold text-primary-foreground transition hover:opacity-90">
             Szukaj <ArrowRight className="h-4 w-4" />
           </button>
+          </div>
+          {round && (
+            <div className="mt-2 grid gap-2 md:grid-cols-[1fr_200px]">
+              <p className="self-center px-3 text-sm font-semibold text-muted-foreground">Powrót: {to || "…"} → {from}</p>
+              <DateTimeField date={retDate} time={retTime} onDate={setRetDate} onTime={setRetTime} />
+            </div>
+          )}
         </form>
       </section>
 
