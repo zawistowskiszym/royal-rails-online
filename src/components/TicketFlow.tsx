@@ -27,7 +27,7 @@ function FakeQR({ seed }: { seed: string }) {
   );
 }
 
-export function TicketFlow({ from, to, date, time = "00:00", onClose, page = false, passengers = 1, carriers = ["vv", "ic", "spr"], title }: { from: string; to: string; date: string; time?: string; onClose: () => void; page?: boolean; passengers?: number; carriers?: string[]; title?: string }) {
+export function TicketFlow({ from, to, date, time = "00:00", onClose, page = false, passengers = 1, carriers = ["vv", "ic", "spr"], title }: { from: string; to: string; date: string; time?: string; onClose: () => void; page?: boolean; passengers?: number; carriers?: string[]; title?: string | undefined }) {
   const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time && (c.legs ? c.legs.every((l) => carriers.includes(l.category)) : carriers.includes(c.category))).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time, carriers.join()]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
