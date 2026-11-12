@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png.asset.json";
 import { TicketFlow } from "@/components/TicketFlow";
 
-type Search = { from: string; to: string; date: string; time: string };
+type Search = { from: string; to: string; date: string; time: string; ret: string; rtime: string; pax: number; cars: string };
 
 export const Route = createFileRoute("/wyniki")({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -11,6 +11,10 @@ export const Route = createFileRoute("/wyniki")({
     to: String(s["to"] ?? ""),
     date: String(s["date"] ?? new Date().toISOString().slice(0, 10)),
     time: String(s["time"] ?? "00:00"),
+    ret: String(s["ret"] ?? ""),
+    rtime: String(s["rtime"] ?? "00:00"),
+    pax: Math.max(1, Math.min(8, Number(s["pax"]) || 1)),
+    cars: String(s["cars"] ?? "vv,ic,spr"),
   }),
   head: () => ({
     meta: [
@@ -26,7 +30,8 @@ export const Route = createFileRoute("/wyniki")({
 });
 
 function Results() {
-  const { from, to, date, time } = Route.useSearch();
+  const { from, to, date, time, ret, rtime, pax, cars } = Route.useSearch();
+  const carriers = cars.split(",").filter(Boolean);
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
@@ -36,7 +41,8 @@ function Results() {
           <Link to="/" className="flex items-center gap-2 text-sm font-semibold hover:text-primary"><ArrowLeft className="h-4 w-4" /> Nowe wyszukiwanie</Link>
         </div>
       </header>
-      <TicketFlow key={`${from}|${to}|${date}|${time}`} page from={from} to={to} date={date} time={time} onClose={() => navigate({ to: "/" })} />
+      <TicketFlow key={`o|${from}|${to}|${date}|${time}|${pax}|${cars}`} page title={ret ? "Tam" : undefined} passengers={pax} carriers={carriers} from={from} to={to} date={date} time={time} onClose={() => navigate({ to: "/" })} />
+      {ret && <div className="-mt-6"><TicketFlow key={`r|${ret}|${rtime}|${pax}|${cars}`} page title="Powrót" passengers={pax} carriers={carriers} from={to} to={from} date={ret} time={rtime} onClose={() => navigate({ to: "/" })} /></div>}
     </div>
   );
 }

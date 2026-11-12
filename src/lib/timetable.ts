@@ -15,7 +15,7 @@ const toMin = (t: string) => { const [h = 0, m = 0] = t.split(":").map(Number); 
 
 export type Conn = { train: string; category: string; from: string; to: string; dep: string; arr: string; mins: number; km: number; legs?: Conn[]; change?: string; wait?: number };
 
-const match = (name: string, q: string) => norm(name) === norm(q) || norm(name).includes(norm(q));
+const match = (name: string, q: string) => norm(q) === norm(allSkuszawyjiceStations) ? norm(name).startsWith(norm("Skuszawyjice ")) : norm(name) === norm(q) || norm(name).includes(norm(q));
 
 export function findConnections(from: string, to: string): Conn[] {
   if (!from.trim() || !to.trim()) return [];
