@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import logo from "@/assets/logo.png.asset.json";
+import { ArrowLeft, Crown } from "lucide-react";
 import { TicketFlow } from "@/components/TicketFlow";
 import { ManageTicket } from "@/components/ManageTicket";
 
@@ -40,7 +39,10 @@ function Results() {
     <div className="min-h-screen bg-background font-sans text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
-          <Link to="/"><img src={logo.url} alt="Koleje Królewskie" className="h-9 w-auto" /></Link>
+          <Link to="/" aria-label="Koleje Królewskie — strona główna" className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Crown className="h-5 w-5" /></span>
+            <span className="text-sm font-extrabold leading-tight tracking-tight">KOLEJE<br />KRÓLEWSKIE</span>
+          </Link>
           <div className="flex items-center gap-4">
             <button type="button" onClick={() => setManageOpen(true)} className="text-sm font-semibold hover:text-primary">Zarządzaj biletem</button>
             <Link to="/" className="flex items-center gap-2 text-sm font-semibold hover:text-primary"><ArrowLeft className="h-4 w-4" /> Nowe wyszukiwanie</Link>
