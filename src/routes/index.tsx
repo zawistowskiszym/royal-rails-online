@@ -1,9 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, ArrowLeftRight, Wifi, Bike, Leaf, Clock, Smartphone, Ticket } from "lucide-react";
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
-import { TicketFlow } from "@/components/TicketFlow";
 import { StationField, DateTimeField } from "@/components/SearchFields";
 import { allSkuszawyjiceStations, stations, veloviaRoute } from "@/lib/timetable";
 import { basePrice, eur } from "@/lib/fares";
@@ -48,7 +47,7 @@ function Index() {
   const [to, setTo] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(() => `${String(new Date().getHours()).padStart(2, "0")}:00`);
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
@@ -81,7 +80,7 @@ function Index() {
           </div>
         </div>
 
-        <form id="bilety" onSubmit={(e) => { e.preventDefault(); setOpen(true); }} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
+        <form id="bilety" onSubmit={(e) => { e.preventDefault(); navigate({ to: "/wyniki", search: { from, to, date, time } }); }} className="relative z-10 mx-auto -mt-10 grid max-w-5xl gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl md:grid-cols-[1fr_auto_1fr_200px_auto]">
           <StationField label="Skąd" value={from} onChange={setFrom} placeholder="Stacja początkowa" options={[allSkuszawyjiceStations, ...stations]} />
           <button type="button" onClick={() => { setFrom(to); setTo(from); }} aria-label="Zamień stacje" className="mx-auto grid h-10 w-10 place-items-center self-center rounded-full bg-secondary transition hover:bg-accent hover:text-accent-foreground">
             <ArrowLeftRight className="h-4 w-4" />
@@ -92,7 +91,6 @@ function Index() {
             Szukaj <ArrowRight className="h-4 w-4" />
           </button>
         </form>
-        {open && <TicketFlow from={from} to={to} date={date} time={time} onClose={() => setOpen(false)} />}
       </section>
 
       <section id="trasy" className="mx-auto max-w-7xl px-5 py-24">

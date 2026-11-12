@@ -27,7 +27,7 @@ function FakeQR({ seed }: { seed: string }) {
   );
 }
 
-export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: string; to: string; date: string; time?: string; onClose: () => void }) {
+export function TicketFlow({ from, to, date, time = "00:00", onClose, page = false }: { from: string; to: string; date: string; time?: string; onClose: () => void; page?: boolean }) {
   const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time && ["vv", "ic", "spr"].includes(c.category)).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
@@ -57,8 +57,8 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose }: { from: 
   const fareInfo = availableFares.find((f) => f.id === fare) ?? availableFares[0]!;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center" onClick={onClose}>
-      <div role="dialog" aria-label="Zakup biletu" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card p-6 shadow-2xl md:rounded-3xl md:p-8" onClick={(e) => e.stopPropagation()}>
+    <div className={page ? "mx-auto max-w-3xl px-5 py-10" : "fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center"} onClick={page ? undefined : onClose}>
+      <div role={page ? "main" : "dialog"} aria-label="Zakup biletu" className={page ? "w-full rounded-3xl border border-border bg-card p-6 md:p-8" : "max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card p-6 shadow-2xl md:rounded-3xl md:p-8"} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">
