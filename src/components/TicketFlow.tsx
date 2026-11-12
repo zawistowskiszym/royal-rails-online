@@ -32,6 +32,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(8);
   const [cls, setCls] = useState<TravelClass>("standard");
   const [sortBy, setSortBy] = useState<"dep" | "mins" | "price">("dep");
   const [listCls, setListCls] = useState<TravelClass>("standard");
@@ -46,6 +47,8 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
     return Math.round(parts.reduce((sum, l) => { const { c: k, f } = fitFor(l.category); return sum + passengerPrice(l.km, k, f, "none", l.category as TrainCategory); }, 0) * passengers * 100) / 100;
   };
   const sorted = [...conns].sort((a, b) => sortBy === "dep" ? a.dep.localeCompare(b.dep) : sortBy === "mins" ? a.mins - b.mins : (priceOf(a) ?? 1e9) - (priceOf(b) ?? 1e9));
+  const shown = sorted.slice(0, visibleCount);
+  const connectionWord = (n: number) => n === 1 ? "połączenie" : n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14) ? "połączenia" : "połączeń";
   const [fare, setFare] = useState<FareType>("standard");
   const [pax, setPax] = useState<Concession[]>(() => Array.from({ length: Math.max(1, Math.min(8, passengers)) }, () => "none" as Concession));
   const [docOk, setDocOk] = useState(false);
@@ -88,7 +91,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-primary">Połączenia</p>
-                <p className="mt-1 text-lg font-bold">{conns.length} {conns.length === 1 ? "połączenie" : conns.length > 1 && conns.length < 5 ? "połączenia" : "połączeń"}</p>
+                <p className="mt-1 text-lg font-bold">{conns.length} {connectionWord(conns.length)}</p>
               </div>
               <p className="text-sm text-muted-foreground">{passengers} {passengers === 1 ? "pasażer" : "pasażerów"} · ceny łączne w EUR</p>
             </div>
@@ -117,7 +120,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             {conns.length === 0 && (
               <p className="rounded-xl bg-secondary p-6 text-center text-muted-foreground">Brak połączeń na tej trasie (także z przesiadką). Sprawdź nazwy stacji, np. „Skuszawyjice Wschodnie” → „Bentach Główny”.</p>
             )}
-            {sorted.map((c) => {
+            {shown.map((c) => {
               const isVelovia = c.category === "vv";
               const ticketable = !c.legs && ["vv", "ic", "spr"].includes(c.category);
               const key = `${c.train}-${c.dep}-${c.from}`;
@@ -203,6 +206,14 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                 </article>
               );
             })}
+            {shown.length < sorted.length && (
+              <div className="mt-5 flex flex-col items-center gap-2 text-center">
+                <p className="text-sm text-muted-foreground">Pokazano {shown.length} z {sorted.length} {connectionWord(sorted.length)}</p>
+                <button type="button" onClick={() => setVisibleCount((count) => count + 8)} className="rounded-xl border border-border px-5 py-3 text-sm font-bold transition hover:border-primary hover:text-primary">
+                  Pokaż kolejne połączenia <span className="font-medium text-muted-foreground">(+{Math.min(8, sorted.length - shown.length)})</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
