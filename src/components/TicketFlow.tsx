@@ -27,14 +27,14 @@ function FakeQR({ seed }: { seed: string }) {
   );
 }
 
-export function TicketFlow({ from, to, date, time = "00:00", onClose, page = false }: { from: string; to: string; date: string; time?: string; onClose: () => void; page?: boolean }) {
-  const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time && ["vv", "ic", "spr"].includes(c.category)).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time]);
+export function TicketFlow({ from, to, date, time = "00:00", onClose, page = false, passengers = 1, carriers = ["vv", "ic", "spr"], title }: { from: string; to: string; date: string; time?: string; onClose: () => void; page?: boolean; passengers?: number; carriers?: string[]; title?: string }) {
+  const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time && (c.legs ? c.legs.every((l) => carriers.includes(l.category)) : carriers.includes(c.category))).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time, carriers.join()]);
   const [step, setStep] = useState<"list" | "details" | "pay" | "done">("list");
   const [sel, setSel] = useState<Conn | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [cls, setCls] = useState<TravelClass>("standard");
   const [fare, setFare] = useState<FareType>("standard");
-  const [pax, setPax] = useState<Concession[]>(["none"]);
+  const [pax, setPax] = useState<Concession[]>(() => Array.from({ length: Math.max(1, Math.min(8, passengers)) }, () => "none" as Concession));
   const [docOk, setDocOk] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -62,7 +62,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-              {step === "list" ? "Wyniki wyszukiwania" : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
+              {step === "list" ? (title ?? "Wyniki wyszukiwania") : step === "details" ? "Krok 2 z 3 · Szczegóły" : step === "pay" ? "Krok 3 z 3 · Płatność" : "Gotowe"}
             </p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight">{sel?.from ?? from} → {sel?.to ?? to}</h2>
             <p className="text-sm text-muted-foreground">{dateLabel}</p>
