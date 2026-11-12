@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, ArrowLeftRight, Wifi, Bike, Leaf, Clock, Smartphone, Ticket } from "lucide-react";
-import logo from "@/assets/logo.png.asset.json";
+import { ArrowRight, ArrowLeftRight, Wifi, Bike, Leaf, Clock, Smartphone, Ticket, Crown } from "lucide-react";
 import hero from "@/assets/hero-train.jpg";
 import { StationField, DateTimeField } from "@/components/SearchFields";
 import { ManageTicket } from "@/components/ManageTicket";
@@ -63,7 +62,10 @@ function Index() {
     <div className="min-h-screen bg-background font-sans text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
-          <img src={logo.url} alt="Koleje Królewskie" className="h-9 w-auto" />
+          <a href="#" aria-label="Koleje Królewskie — strona główna" className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Crown className="h-5 w-5" /></span>
+            <span className="text-sm font-extrabold leading-tight tracking-tight">KOLEJE<br />KRÓLEWSKIE</span>
+          </a>
           <nav className="hidden gap-8 text-sm font-medium md:flex">
             <a href="#bilety" className="hover:text-primary">Bilety</a>
             <a href="#trasy" className="hover:text-primary">Trasy</a>
@@ -193,7 +195,7 @@ function Index() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-10 text-sm text-muted-foreground md:flex-row">
-          <img src={logo.url} alt="Koleje Królewskie" className="h-8 w-auto" />
+          <span className="font-extrabold tracking-tight">KOLEJE KRÓLEWSKIE</span>
           <p>© 2026 Koleje Królewskie. Wszystkie prawa zastrzeżone.</p>
         </div>
       </footer>
