@@ -4,6 +4,7 @@ import { ArrowRight, ArrowLeftRight, Wifi, Bike, Leaf, Clock, Smartphone, Ticket
 import logo from "@/assets/logo.png.asset.json";
 import hero from "@/assets/hero-train.jpg";
 import { StationField, DateTimeField } from "@/components/SearchFields";
+import { ManageTicket } from "@/components/ManageTicket";
 import { allSkuszawyjiceStations, stations, veloviaRoute } from "@/lib/timetable";
 import { basePrice, eur } from "@/lib/fares";
 
@@ -52,6 +53,7 @@ function Index() {
   const [retTime, setRetTime] = useState("16:00");
   const [pax, setPax] = useState(1);
   const [cars, setCars] = useState<string[]>(["vv", "ic", "spr"]);
+  const [manageOpen, setManageOpen] = useState(false);
   const navigate = useNavigate();
   const carrierOpts = [["vv", "Velovia"], ["ic", "Intercity"], ["spr", "Sprinter"], ["kr", "Krukolej"]] as const;
   const toggleCar = (c: string) => setCars((p) => (p.includes(c) ? (p.length > 1 ? p.filter((x) => x !== c) : p) : [...p, c]));
@@ -68,9 +70,10 @@ function Index() {
             <a href="#podroz" className="hover:text-primary">Podróż</a>
             <a href="#aplikacja" className="hover:text-primary">Aplikacja</a>
           </nav>
-          <a href="#bilety" className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
-            Kup bilet
-          </a>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setManageOpen(true)} className="rounded-full border border-border px-4 py-2 text-sm font-semibold transition hover:border-primary hover:text-primary">Zarządzaj biletem</button>
+            <a href="#bilety" className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90">Kup bilet</a>
+          </div>
         </div>
       </header>
 
@@ -119,6 +122,8 @@ function Index() {
           )}
         </form>
       </section>
+
+      {manageOpen && <ManageTicket onClose={() => setManageOpen(false)} />}
 
       <section id="trasy" className="mx-auto max-w-7xl px-5 py-24">
         <div className="flex items-end justify-between gap-6">
