@@ -80,6 +80,7 @@ export function ManageTicket({ onClose }: { onClose: () => void }) {
               <div><dt className="text-muted-foreground">Odjazd · przyjazd</dt><dd className="font-semibold tabular-nums">{ticket.dep} · {ticket.arr}</dd></div>
               <div><dt className="text-muted-foreground">Pasażerowie</dt><dd className="font-semibold">{ticket.passengers}</dd></div>
               <div><dt className="text-muted-foreground">Klasa · taryfa</dt><dd className="font-semibold">{ticket.travelClass} · {ticket.fare}</dd></div>
+              {ticket.seats && ticket.seats.length > 0 && <div className="col-span-2"><dt className="text-muted-foreground">Miejsca</dt><dd className="font-semibold">{ticket.seats.join(" · ")}</dd></div>}
             </dl>
             <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
               <span className="text-sm text-muted-foreground">Nr {ticket.code}</span>

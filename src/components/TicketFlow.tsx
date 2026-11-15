@@ -53,6 +53,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const connectionWord = (n: number) => n === 1 ? "połączenie" : n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14) ? "połączenia" : "połączeń";
   const [fare, setFare] = useState<FareType>("standard");
   const [pax, setPax] = useState<Concession[]>(() => Array.from({ length: Math.max(1, Math.min(8, passengers)) }, () => "none" as Concession));
+  const [seats, setSeats] = useState<(string | null)[]>(() => Array.from({ length: pax.length }, () => null));
   const [docOk, setDocOk] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,6 +70,8 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const effective = pax.map((p) => (allowed ? p : "none"));
   const needsDoc = effective.some((p) => p !== "none");
   const total = sel ? Math.round(effective.reduce((s, p) => s + passengerPrice(sel.km, cls, fare, p, category), 0) * 100) / 100 : 0;
+  const selectedSeats = seats.filter((seat): seat is string => Boolean(seat));
+  const seatsComplete = category !== "vv" || selectedSeats.length === pax.length;
   const dateLabel = ((s: string) => s.charAt(0).toUpperCase() + s.slice(1))(new Date(date).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" }));
   const input = "w-full rounded-xl bg-secondary px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-primary";
   const chip = (on: boolean) => `rounded-xl border p-3 text-left text-sm font-semibold ${on ? "border-primary bg-primary/10 text-primary" : "border-border"}`;
@@ -175,7 +178,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                           <p className="truncate text-xs font-medium text-muted-foreground">{selectedClassLabel} · {fit.f.toUpperCase()}{!ticketable && " · 2 bilety"}</p>
                         </> : <p className="text-sm font-semibold text-muted-foreground">{c.category === "kr" ? "Sprzedaż u przewoźnika" : "Sprzedaż wkrótce"}</p>}
                       </div>
-                      <button disabled={!ticketable} onClick={() => { setSel(c); const selected = fitFor(c.category); setCls(selected.c); setFare(selected.f); setStep("details"); }} className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground">
+                      <button disabled={!ticketable} onClick={() => { setSel(c); const selected = fitFor(c.category); setCls(selected.c); setFare(selected.f); setSeats(Array.from({ length: pax.length }, () => null)); setStep("details"); }} className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground">
                         {ticketable ? "Wybierz" : c.category === "kr" ? "U operatora" : "Niedostępne"}
                       </button>
                     </aside>
@@ -226,7 +229,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
               <p className="mb-2 text-sm font-semibold">Klasa</p>
               <div className={`grid gap-2 ${availableClasses.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                 {availableClasses.map((k) => (
-                  <button key={k.id} onClick={() => setCls(k.id)} className={chip(cls === k.id)}>{classLabel(k.id)}<div className="mt-1 text-xs font-normal opacity-70">{eur(categoryBasePrice(category, sel.km, k.id))}</div></button>
+                  <button key={k.id} onClick={() => { setCls(k.id); if (category === "vv") setSeats(Array.from({ length: pax.length }, () => null)); }} className={chip(cls === k.id)}>{classLabel(k.id)}<div className="mt-1 text-xs font-normal opacity-70">{eur(categoryBasePrice(category, sel.km, k.id))}</div></button>
                 ))}
               </div>
             </div>
@@ -243,9 +246,9 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold">Pasażerowie</p>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPax(pax.slice(0, -1))} disabled={pax.length < 2} className="h-8 w-8 rounded-full bg-secondary font-bold disabled:opacity-40">−</button>
+                  <button aria-label="Usuń pasażera" onClick={() => { setPax(pax.slice(0, -1)); setSeats(seats.slice(0, -1)); }} disabled={pax.length < 2} className="h-8 w-8 rounded-full bg-secondary font-bold disabled:opacity-40">−</button>
                   <span className="w-5 text-center font-bold">{pax.length}</span>
-                  <button onClick={() => setPax([...pax, "none"])} disabled={pax.length > 8} className="h-8 w-8 rounded-full bg-secondary font-bold disabled:opacity-40">+</button>
+                  <button aria-label="Dodaj pasażera" onClick={() => { setPax([...pax, "none"]); setSeats([...seats, null]); }} disabled={pax.length >= 8} className="h-8 w-8 rounded-full bg-secondary font-bold disabled:opacity-40">+</button>
                 </div>
               </div>
               {!allowed && <p className="mb-2 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">Ulgi nie łączą się z ofertami PROMO i innymi promocjami. Wybierz STANDARD lub FLEX, aby skorzystać z ulgi.</p>}
@@ -267,13 +270,16 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                 </label>
               )}
             </div>
+            {category === "vv" && (
+              <VeloviaSeatMap key={`${sel.train}-${date}-${cls}`} train={sel.train} date={date} travelClass={cls} value={seats} onChange={setSeats} />
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
               <input className={input} placeholder="Imię i nazwisko" value={name} onChange={(e) => setName(e.target.value)} />
               <input className={input} type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="flex items-center justify-between border-t border-border pt-5">
               <button onClick={() => setStep("list")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
-              <button disabled={!name.trim() || !/\S+@\S+\.\S+/.test(email) || (needsDoc && !docOk)} onClick={() => setStep("pay")} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
+              <button disabled={!name.trim() || !/\S+@\S+\.\S+/.test(email) || (needsDoc && !docOk) || !seatsComplete} title={!seatsComplete ? "Wybierz miejsce dla każdego pasażera" : undefined} onClick={() => setStep("pay")} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
                 Dalej · {eur(total)} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -285,7 +291,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             try {
               const saved = JSON.parse(window.localStorage.getItem("kk-demo-tickets") ?? "[]");
               const tickets = Array.isArray(saved) ? saved : [];
-              tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, total: eur(total), status: "active" });
+              tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, seats: selectedSeats.map(seatLabel), total: eur(total), status: "active" });
               window.localStorage.setItem("kk-demo-tickets", JSON.stringify(tickets));
             } catch { /* Demo checkout can still finish if browser storage is unavailable. */ }
             setPaying(false); setStep("done");
@@ -315,6 +321,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                 <div className="text-sm opacity-80">{sel.from} → {sel.to}</div>
                 <div className="text-sm opacity-80">{dateLabel}</div>
                 <div className="text-sm opacity-80">{name} · {pax.length} os. · {classLabel(cls)} · {fareInfo.label}</div>
+                {selectedSeats.length > 0 && <div className="text-sm opacity-80">Miejsca: {selectedSeats.map(seatLabel).join(" · ")}</div>}
                 {needsDoc && <div className="text-xs opacity-70">Bilet z ulgą — ważny z dokumentem uprawniającym.</div>}
                 <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {eur(total)}</div>
               </div>
