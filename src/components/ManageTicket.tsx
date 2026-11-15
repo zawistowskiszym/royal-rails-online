@@ -13,6 +13,7 @@ type DemoTicket = {
   passengers: number;
   travelClass: string;
   fare: string;
+  seats?: string[];
   total: string;
   status: "active" | "cancelled";
 };

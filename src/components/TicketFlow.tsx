@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { ArrowRight, Check, ChevronDown, CreditCard, TrainFront, X } from "lucide-react";
 import { categoryCodes, categoryNames, findConnections, findTransfers, trainRoute, type Conn } from "@/lib/timetable";
 import { categoryBasePrice, classes, concessionAllowed, concessions, eur, faresFor, passengerPrice, type Concession, type FareType, type TrainCategory, type TravelClass } from "@/lib/fares";
+import { VeloviaSeatMap } from "@/components/VeloviaSeatMap";
+import { seatLabel } from "@/lib/seats";
 
 function FakeQR({ seed }: { seed: string }) {
   const cells = useMemo(() => {
