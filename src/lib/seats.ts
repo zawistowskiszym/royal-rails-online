@@ -37,7 +37,7 @@ const standard: SeatColumn[] = [
 export const veloviaCoaches: readonly VeloviaCoach[] = [
   { number: 1, travelClass: "business", layout: "2+1", columns: firstClass(true), facilities: ["cab", "luggage"] },
   { number: 2, travelClass: "premiere", layout: "2+1", columns: firstClass(), facilities: ["wc", "luggage"] },
-  { number: 3, travelClass: "premiere", layout: "2+1", columns: [
+  { number: 3, travelClass: "premiere", layout: "2+2", columns: [
     column([14, 13, 12, 11]), column([24, 23, 22, 21], true),
     column([28, 27, 26, 25]), column([34, 33, 32, 31], true),
     column([38, 37, 36, 35]), column([44, 43, null, 41]),
