@@ -12,18 +12,41 @@ describe("schemat ośmiowagonowego Velaro", () => {
   it("generuje niepowtarzalne numery miejsc", () => {
     const seats = veloviaCoaches.flatMap(seatsInCoach);
     expect(new Set(seats.map((seat) => seat.id)).size).toBe(seats.length);
-    expect(seatsInCoach(veloviaCoaches[0]!)).toHaveLength(24);
-    expect(seatsInCoach(veloviaCoaches[3]!)).toHaveLength(64);
+    const business = veloviaCoaches.find((coach) => coach.number === 1);
+    const accessible = veloviaCoaches.find((coach) => coach.number === 4);
+    if (!business || !accessible) throw new Error("Brak wagonu");
+    expect(seatsInCoach(business)).toHaveLength(48);
+    expect(seatsInCoach(accessible)).toHaveLength(38);
+  });
+
+  it("odtwarza numerację i puste pola wagonu czołowego Standard", () => {
+    const coach = veloviaCoaches.find((item) => item.number === 8);
+    if (!coach) throw new Error("Brak wagonu 8");
+    const seats = seatsInCoach(coach);
+    expect(seats).toHaveLength(51);
+    expect(seats.filter((seat) => seat.column === 0).map((seat) => seat.number)).toEqual([14, 12, 11]);
+    expect(seats.some((seat) => seat.id === "8-13")).toBe(false);
+    expect(seats.find((seat) => seat.number === 14)?.window).toBe(true);
+    expect(seats.find((seat) => seat.number === 12)?.window).toBe(false);
+  });
+
+  it("ma stoliki, bistro i miejsca na wózki bez fikcyjnych foteli w pustych polach", () => {
+    expect(veloviaCoaches.find((coach) => coach.number === 3)?.facilities).toContain("bistro");
+    expect(veloviaCoaches.find((coach) => coach.number === 4)?.facilities).toContain("accessible");
+    const coach = veloviaCoaches.find((item) => item.number === 5);
+    if (!coach) throw new Error("Brak wagonu 5");
+    expect(seatsInCoach(coach)).toHaveLength(76);
+    expect(seatsInCoach(coach).find((seat) => seat.number === 24)?.table).toBe(true);
   });
 
   it("zachowuje symulowaną zajętość dla tego samego pociągu i dnia", () => {
-    expect(isSeatOccupied("VV 101", "2026-11-20", "4-12A")).toBe(isSeatOccupied("VV 101", "2026-11-20", "4-12A"));
+    expect(isSeatOccupied("VV 101", "2026-11-20", "4-14")).toBe(isSeatOccupied("VV 101", "2026-11-20", "4-14"));
   });
 
   it("przypisuje jedno miejsce tylko jednemu pasażerowi i pozwala je zwolnić", () => {
-    const assigned = assignSeat([null, null], 1, "4-12A");
-    expect(assigned).toEqual([null, "4-12A"]);
-    expect(assignSeat(assigned, 0, "4-12A")).toEqual([null, null]);
-    expect(assignSeat(assigned, 0, "4-12B")).toEqual(["4-12B", "4-12A"]);
+    const assigned = assignSeat([null, null], 1, "4-14");
+    expect(assigned).toEqual([null, "4-14"]);
+    expect(assignSeat(assigned, 0, "4-14")).toEqual([null, null]);
+    expect(assignSeat(assigned, 0, "4-15")).toEqual(["4-15", "4-14"]);
   });
 });
