@@ -55,9 +55,9 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const [pax, setPax] = useState<Concession[]>(() => Array.from({ length: Math.max(1, Math.min(8, passengers)) }, () => "none" as Concession));
   const [seats, setSeats] = useState<(string | null)[]>(() => Array.from({ length: pax.length }, () => null));
   const [docOk, setDocOk] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [paying, setPaying] = useState(false);
+  const [paymentOutcome, setPaymentOutcome] = useState<"success" | "declined">("success");
+  const [paymentError, setPaymentError] = useState("");
   const [code] = useState(() => `KK-${Math.random().toString(36).slice(2, 10).toUpperCase()}`);
 
   const category = (sel?.category ?? "vv") as TrainCategory;
@@ -273,13 +273,10 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             {category === "vv" && (
               <VeloviaSeatMap key={`${sel.train}-${date}-${cls}`} train={sel.train} date={date} travelClass={cls} value={seats} onChange={setSeats} />
             )}
-            <div className="grid gap-2 sm:grid-cols-2">
-              <input className={input} placeholder="Imię i nazwisko" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className={input} type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
+            <p className="rounded-xl bg-secondary p-4 text-sm text-muted-foreground">To tylko symulacja. Nie wpisuj prawdziwych danych osobowych ani danych płatniczych.</p>
             <div className="flex items-center justify-between border-t border-border pt-5">
               <button onClick={() => setStep("list")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
-              <button disabled={!name.trim() || !/\S+@\S+\.\S+/.test(email) || (needsDoc && !docOk) || !seatsComplete} title={!seatsComplete ? "Wybierz miejsce dla każdego pasażera" : undefined} onClick={() => setStep("pay")} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
+              <button disabled={(needsDoc && !docOk) || !seatsComplete} title={!seatsComplete ? "Wybierz miejsce dla każdego pasażera" : undefined} onClick={() => { setPaymentError(""); setPaymentOutcome("success"); setStep("pay"); }} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
                 Dalej · {eur(total)} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -287,25 +284,39 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
         )}
 
         {step === "pay" && sel && (
-          <form className="mt-6 space-y-4" onSubmit={(e) => { e.preventDefault(); setPaying(true); setTimeout(() => {
-            try {
-              const saved = JSON.parse(window.localStorage.getItem("kk-demo-tickets") ?? "[]");
-              const tickets = Array.isArray(saved) ? saved : [];
-              tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, seats: selectedSeats.map(seatLabel), total: eur(total), status: "active" });
-              window.localStorage.setItem("kk-demo-tickets", JSON.stringify(tickets));
-            } catch { /* Demo checkout can still finish if browser storage is unavailable. */ }
-            setPaying(false); setStep("done");
-          }, 1200); }}>
-            <p className="rounded-xl bg-secondary p-3 text-sm text-muted-foreground">Płatność pokazowa — żadne pieniądze nie zostaną pobrane.</p>
-            <input className={input} placeholder="Numer karty" defaultValue="4242 4242 4242 4242" required />
-            <div className="grid grid-cols-2 gap-2">
-              <input className={input} placeholder="MM/RR" defaultValue="12/29" required />
-              <input className={input} placeholder="CVC" defaultValue="123" required />
+          <form className="mt-6 space-y-4" onSubmit={(e) => {
+            e.preventDefault();
+            setPaying(true);
+            setPaymentError("");
+            setTimeout(() => {
+              if (paymentOutcome === "declined") {
+                setPaymentError("Symulacja: płatność odrzucona. Bilet nie został wystawiony.");
+                setPaying(false);
+                return;
+              }
+              try {
+                const saved = JSON.parse(window.localStorage.getItem("kk-demo-tickets") ?? "[]");
+                const tickets = Array.isArray(saved) ? saved : [];
+                tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, seatIds: selectedSeats, seats: selectedSeats.map(seatLabel), total: eur(total), status: "active" });
+                window.localStorage.setItem("kk-demo-tickets", JSON.stringify(tickets));
+                setPaying(false);
+                setStep("done");
+              } catch {
+                setPaymentError("Nie udało się zapisać biletu w tej przeglądarce. Sprawdź jej ustawienia i spróbuj ponownie.");
+                setPaying(false);
+              }
+            }, 800);
+          }}>
+            <p className="rounded-xl bg-secondary p-3 text-sm text-muted-foreground">Płatność demonstracyjna — nie pobieramy pieniędzy. Wybierz wynik testu:</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" aria-pressed={paymentOutcome === "success"} onClick={() => { setPaymentOutcome("success"); setPaymentError(""); }} className={chip(paymentOutcome === "success")}>Płatność udana</button>
+              <button type="button" aria-pressed={paymentOutcome === "declined"} onClick={() => { setPaymentOutcome("declined"); setPaymentError(""); }} className={chip(paymentOutcome === "declined")}>Płatność odrzucona</button>
             </div>
+            {paymentError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{paymentError}</p>}
             <div className="flex items-center justify-between border-t border-border pt-5">
-              <button type="button" onClick={() => setStep("details")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
+              <button type="button" onClick={() => { setPaymentError(""); setStep("details"); }} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
               <button disabled={paying} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-                <CreditCard className="h-4 w-4" /> {paying ? "Przetwarzanie…" : `Zapłać ${eur(total)}`}
+                <CreditCard className="h-4 w-4" /> {paying ? "Przetwarzanie…" : `Symuluj płatność · ${eur(total)}`}
               </button>
             </div>
           </form>
@@ -320,14 +331,14 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                 <div className="text-3xl font-extrabold tabular-nums">{sel.dep} → {sel.arr}</div>
                 <div className="text-sm opacity-80">{sel.from} → {sel.to}</div>
                 <div className="text-sm opacity-80">{dateLabel}</div>
-                <div className="text-sm opacity-80">{name} · {pax.length} os. · {classLabel(cls)} · {fareInfo.label}</div>
+                <div className="text-sm opacity-80">{pax.length} os. · {classLabel(cls)} · {fareInfo.label}</div>
                 {selectedSeats.length > 0 && <div className="text-sm opacity-80">Miejsca: {selectedSeats.map(seatLabel).join(" · ")}</div>}
                 {needsDoc && <div className="text-xs opacity-70">Bilet z ulgą — ważny z dokumentem uprawniającym.</div>}
                 <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {eur(total)}</div>
               </div>
               <div className="rounded-xl bg-background p-2"><FakeQR seed={code} /></div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">Bilet pokazowy — w prawdziwej wersji trafiłby na {email}.</p>
+            <p className="mt-3 text-sm text-muted-foreground">Bilet symulacyjny zapisany w tej przeglądarce. Kod QR jest ilustracyjny i nie uprawnia do przejazdu.</p>
             <button onClick={onClose} className="mt-5 w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground">Zamknij</button>
           </div>
         )}

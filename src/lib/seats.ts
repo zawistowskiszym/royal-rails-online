@@ -90,7 +90,19 @@ export function isSeatOccupied(train: string, date: string, seatId: string): boo
   return hash(`${train}|${date}|${seatId}`) % 100 < 27;
 }
 export function occupiedSeats(train: string, date: string): Set<string> {
-  return new Set(veloviaCoaches.flatMap(seatsInCoach).filter((seat) => isSeatOccupied(train, date, seat.id)).map((seat) => seat.id));
+  const occupied = new Set(veloviaCoaches.flatMap(seatsInCoach).filter((seat) => isSeatOccupied(train, date, seat.id)).map((seat) => seat.id));
+  if (typeof window === "undefined") return occupied;
+  try {
+    const records: unknown = JSON.parse(window.localStorage.getItem("kk-demo-tickets") ?? "[]");
+    if (!Array.isArray(records)) return occupied;
+    for (const record of records) {
+      if (!record || typeof record !== "object") continue;
+      const ticket = record as { train?: unknown; date?: unknown; status?: unknown; seatIds?: unknown };
+      if (ticket.train !== train || ticket.date !== date || ticket.status !== "active" || !Array.isArray(ticket.seatIds)) continue;
+      for (const seatId of ticket.seatIds) if (typeof seatId === "string") occupied.add(seatId);
+    }
+  } catch { /* Stored reservations are optional in the demo. */ }
+  return occupied;
 }
 export function assignSeat(selections: readonly (string | null)[], passengerIndex: number, seatId: string): (string | null)[] {
   const next = [...selections];
