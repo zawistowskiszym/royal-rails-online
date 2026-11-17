@@ -1,33 +1,9 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Check, ChevronDown, CreditCard, TrainFront, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CreditCard, Printer, TrainFront, X } from "lucide-react";
 import { categoryCodes, categoryNames, findConnections, findTransfers, trainRoute, type Conn } from "@/lib/timetable";
 import { categoryBasePrice, classes, concessionAllowed, concessions, eur, faresFor, passengerPrice, type Concession, type FareType, type TrainCategory, type TravelClass } from "@/lib/fares";
 import { VeloviaSeatMap } from "@/components/VeloviaSeatMap";
 import { seatLabel } from "@/lib/seats";
-
-function FakeQR({ seed }: { seed: string }) {
-  const cells = useMemo(() => {
-    let h = 0; for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return Array.from({ length: 441 }, () => { h = (h * 1103515245 + 12345) >>> 0; return (h >> 16) & 1; });
-  }, [seed]);
-  return (
-    <svg viewBox="0 0 21 21" className="h-40 w-40" shapeRendering="crispEdges">
-      <rect width="21" height="21" className="fill-background" />
-      {cells.map((v, i) => {
-        const x = i % 21, y = Math.floor(i / 21);
-        if ((x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13)) return null;
-        return v ? <rect key={i} x={x} y={y} width="1" height="1" className="fill-foreground" /> : null;
-      })}
-      {([[0, 0], [14, 0], [0, 14]] as const).map(([x, y]) => (
-        <g key={`${x}${y}`}>
-          <rect x={x} y={y} width="7" height="7" className="fill-foreground" />
-          <rect x={x + 1} y={y + 1} width="5" height="5" className="fill-background" />
-          <rect x={x + 2} y={y + 2} width="3" height="3" className="fill-foreground" />
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 export function TicketFlow({ from, to, date, time = "00:00", onClose, page = false, passengers = 1, carriers = ["vv", "ic", "spr"], title }: { from: string; to: string; date: string; time?: string; onClose: () => void; page?: boolean; passengers?: number; carriers?: string[]; title?: string | undefined }) {
   const conns = useMemo(() => [...findConnections(from, to), ...findTransfers(from, to)].filter((c) => c.dep >= time && (c.legs ? c.legs.every((l) => carriers.includes(l.category)) : carriers.includes(c.category))).sort((a, b) => a.dep.localeCompare(b.dep) || a.mins - b.mins), [from, to, time, carriers.join()]);
@@ -56,7 +32,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
   const [seats, setSeats] = useState<(string | null)[]>(() => Array.from({ length: pax.length }, () => null));
   const [docOk, setDocOk] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [paymentOutcome, setPaymentOutcome] = useState<"success" | "declined">("success");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "blik" | "transfer">("card");
   const [paymentError, setPaymentError] = useState("");
   const [code] = useState(() => `KK-${Math.random().toString(36).slice(2, 10).toUpperCase()}`);
 
@@ -273,10 +249,9 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             {category === "vv" && (
               <VeloviaSeatMap key={`${sel.train}-${date}-${cls}`} train={sel.train} date={date} travelClass={cls} value={seats} onChange={setSeats} />
             )}
-            <p className="rounded-xl bg-secondary p-4 text-sm text-muted-foreground">To tylko symulacja. Nie wpisuj prawdziwych danych osobowych ani danych płatniczych.</p>
             <div className="flex items-center justify-between border-t border-border pt-5">
               <button onClick={() => setStep("list")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
-              <button disabled={(needsDoc && !docOk) || !seatsComplete} title={!seatsComplete ? "Wybierz miejsce dla każdego pasażera" : undefined} onClick={() => { setPaymentError(""); setPaymentOutcome("success"); setStep("pay"); }} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
+              <button disabled={(needsDoc && !docOk) || !seatsComplete} title={!seatsComplete ? "Wybierz miejsce dla każdego pasażera" : undefined} onClick={() => { setPaymentError(""); setPaymentMethod("card"); setStep("pay"); }} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-40">
                 Dalej · {eur(total)} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -289,34 +264,30 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
             setPaying(true);
             setPaymentError("");
             setTimeout(() => {
-              if (paymentOutcome === "declined") {
-                setPaymentError("Symulacja: płatność odrzucona. Bilet nie został wystawiony.");
-                setPaying(false);
-                return;
-              }
               try {
                 const saved = JSON.parse(window.localStorage.getItem("kk-demo-tickets") ?? "[]");
                 const tickets = Array.isArray(saved) ? saved : [];
-                tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, seatIds: selectedSeats, seats: selectedSeats.map(seatLabel), total: eur(total), status: "active" });
+                tickets.push({ code, train: sel.train, category: categoryNames[category] ?? category, from: sel.from, to: sel.to, dep: sel.dep, arr: sel.arr, date, passengers: pax.length, travelClass: classLabel(cls), fare: fareInfo.label, paymentMethod, seatIds: selectedSeats, seats: selectedSeats.map(seatLabel), total: eur(total), status: "active" });
                 window.localStorage.setItem("kk-demo-tickets", JSON.stringify(tickets));
                 setPaying(false);
                 setStep("done");
               } catch {
-                setPaymentError("Nie udało się zapisać biletu w tej przeglądarce. Sprawdź jej ustawienia i spróbuj ponownie.");
+                setPaymentError("Nie udało się zapisać zamówienia. Spróbuj ponownie.");
                 setPaying(false);
               }
-            }, 800);
+            }, 700);
           }}>
-            <p className="rounded-xl bg-secondary p-3 text-sm text-muted-foreground">Płatność demonstracyjna — nie pobieramy pieniędzy. Wybierz wynik testu:</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" aria-pressed={paymentOutcome === "success"} onClick={() => { setPaymentOutcome("success"); setPaymentError(""); }} className={chip(paymentOutcome === "success")}>Płatność udana</button>
-              <button type="button" aria-pressed={paymentOutcome === "declined"} onClick={() => { setPaymentOutcome("declined"); setPaymentError(""); }} className={chip(paymentOutcome === "declined")}>Płatność odrzucona</button>
+            <p className="text-sm font-semibold">Wybierz metodę płatności</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {([["card", "Karta płatnicza"], ["blik", "BLIK"], ["transfer", "Szybki przelew"]] as const).map(([id, label]) => (
+                <button type="button" key={id} aria-pressed={paymentMethod === id} onClick={() => setPaymentMethod(id)} className={chip(paymentMethod === id)}>{label}</button>
+              ))}
             </div>
             {paymentError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{paymentError}</p>}
             <div className="flex items-center justify-between border-t border-border pt-5">
-              <button type="button" onClick={() => { setPaymentError(""); setStep("details"); }} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
+              <button type="button" onClick={() => setStep("details")} className="text-sm font-semibold text-muted-foreground hover:text-foreground">← Wróć</button>
               <button disabled={paying} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-                <CreditCard className="h-4 w-4" /> {paying ? "Przetwarzanie…" : `Symuluj płatność · ${eur(total)}`}
+                <CreditCard className="h-4 w-4" /> {paying ? "Przetwarzanie…" : `Zapłać ${eur(total)}`}
               </button>
             </div>
           </form>
@@ -325,7 +296,7 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
         {step === "done" && sel && (
           <div className="mt-6">
             <div className="flex items-center gap-2 font-semibold text-primary"><Check className="h-5 w-5" /> Bilet kupiony</div>
-            <div className="mt-4 grid gap-6 rounded-2xl bg-ink p-6 text-ink-foreground sm:grid-cols-[1fr_auto]">
+            <div data-print-ticket className="mt-4 grid gap-6 rounded-2xl bg-ink p-6 text-ink-foreground sm:grid-cols-[1fr_auto]">
               <div className="space-y-3">
                 <div className="flex items-center gap-2"><span className="rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{categoryCodes[category]}</span><span className="font-semibold">{categoryNames[category] ?? category} {sel.train}</span></div>
                 <div className="text-3xl font-extrabold tabular-nums">{sel.dep} → {sel.arr}</div>
@@ -334,12 +305,17 @@ export function TicketFlow({ from, to, date, time = "00:00", onClose, page = fal
                 <div className="text-sm opacity-80">{pax.length} os. · {classLabel(cls)} · {fareInfo.label}</div>
                 {selectedSeats.length > 0 && <div className="text-sm opacity-80">Miejsca: {selectedSeats.map(seatLabel).join(" · ")}</div>}
                 {needsDoc && <div className="text-xs opacity-70">Bilet z ulgą — ważny z dokumentem uprawniającym.</div>}
-                <div className="pt-2 text-xs opacity-60">Nr biletu {code} · {eur(total)}</div>
+                <div className="rounded-xl border border-ink-foreground/20 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Numer biletu</p>
+                  <p className="mt-1 font-mono text-xl font-extrabold tracking-wider">{code}</p>
+                </div>
+                <div className="pt-2 text-xs opacity-60">{eur(total)} · {paymentMethod === "card" ? "Karta płatnicza" : paymentMethod === "blik" ? "BLIK" : "Szybki przelew"}</div>
               </div>
-              <div className="rounded-xl bg-background p-2"><FakeQR seed={code} /></div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">Bilet symulacyjny zapisany w tej przeglądarce. Kod QR jest ilustracyjny i nie uprawnia do przejazdu.</p>
-            <button onClick={onClose} className="mt-5 w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground">Zamknij</button>
+            <div data-print-hide className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button onClick={() => window.print()} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-3 font-semibold"><Printer className="h-4 w-4" /> Drukuj / Zapisz PDF</button>
+              <button onClick={onClose} className="flex-1 rounded-xl bg-primary py-3 font-semibold text-primary-foreground">Gotowe</button>
+            </div>
           </div>
         )}
       </div>

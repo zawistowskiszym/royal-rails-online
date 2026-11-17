@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { X } from "lucide-react";
+import { Printer, X } from "lucide-react";
 
 type DemoTicket = {
   code: string;
@@ -14,6 +14,7 @@ type DemoTicket = {
   travelClass: string;
   fare: string;
   seats?: string[];
+  paymentMethod?: string;
   total: string;
   status: "active" | "cancelled";
 };
@@ -31,12 +32,15 @@ function readTickets(): DemoTicket[] {
 
 export function ManageTicket({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState("");
+  const [tickets, setTickets] = useState<DemoTicket[]>(() => readTickets());
   const [ticket, setTicket] = useState<DemoTicket | null>(null);
   const [searched, setSearched] = useState(false);
 
   const search = (event: FormEvent) => {
     event.preventDefault();
-    setTicket(readTickets().find((item) => item.code === code.trim().toUpperCase()) ?? null);
+    const saved = readTickets();
+    setTickets(saved);
+    setTicket(saved.find((item) => item.code === code.trim().toUpperCase()) ?? null);
     setSearched(true);
   };
 
@@ -44,6 +48,7 @@ export function ManageTicket({ onClose }: { onClose: () => void }) {
     if (!ticket) return;
     const updated = readTickets().map((item) => item.code === ticket.code ? { ...item, status: "cancelled" as const } : item);
     window.localStorage.setItem(storageKey, JSON.stringify(updated));
+    setTickets(updated);
     setTicket({ ...ticket, status: "cancelled" });
   };
 
@@ -56,7 +61,7 @@ export function ManageTicket({ onClose }: { onClose: () => void }) {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">Rezerwacje</p>
             <h2 className="mt-1 text-2xl font-extrabold">Zarządzaj biletem</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Wpisz numer biletu pokazywanego po zakończeniu zakupu testowego.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Wybierz zapisany bilet albo wyszukaj go po numerze.</p>
           </div>
           <button onClick={onClose} aria-label="Zamknij" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary hover:bg-accent"><X className="h-4 w-4" /></button>
         </div>
@@ -66,31 +71,46 @@ export function ManageTicket({ onClose }: { onClose: () => void }) {
           <button className="shrink-0 rounded-xl bg-primary px-5 font-semibold text-primary-foreground">Szukaj</button>
         </form>
 
-        {searched && !ticket && <p role="status" className="mt-4 rounded-xl bg-secondary p-4 text-sm">Nie znaleziono biletu w tej przeglądarce. Wyszukiwanie obejmuje tylko lokalne bilety demonstracyjne.</p>}
+        {tickets.length > 0 && (
+          <section className="mt-5 space-y-2" aria-label="Zapisane bilety">
+            <h3 className="text-sm font-bold">Zapisane bilety</h3>
+            {[...tickets].reverse().map((item) => (
+              <button type="button" key={item.code} onClick={() => { setTicket(item); setSearched(false); }} className={`w-full rounded-xl border p-3 text-left transition ${ticket?.code === item.code ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                <span className="flex items-center justify-between gap-3"><span className="font-mono text-xs font-bold">{item.code}</span><span className={item.status === "active" ? "text-xs font-semibold text-primary" : "text-xs text-muted-foreground"}>{item.status === "active" ? "Aktywny" : "Anulowany"}</span></span>
+                <span className="mt-1 block text-sm font-semibold">{item.from} → {item.to}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{item.date} · {item.dep} → {item.arr}</span>
+              </button>
+            ))}
+          </section>
+        )}
+        {searched && !ticket && <p role="status" className="mt-4 rounded-xl bg-secondary p-4 text-sm">Nie znaleziono biletu o podanym numerze.</p>}
         {ticket && (
-          <div className="mt-5 rounded-2xl border border-border p-5">
+          <div data-print-ticket className="mt-5 rounded-2xl border border-border p-5">
             <div className="flex items-start justify-between gap-3">
               <div><p className="text-xs font-semibold uppercase text-muted-foreground">{ticket.category} · {ticket.train}</p><p className="mt-1 text-xl font-extrabold">{ticket.from} → {ticket.to}</p></div>
               <span className={ticket.status === "active" ? "rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary" : "rounded-full bg-secondary px-3 py-1 text-xs font-bold text-muted-foreground"}>
-                {ticket.status === "active" ? "Aktywny · demo" : "Anulowany · demo"}
+                {ticket.status === "active" ? "Aktywny" : "Anulowany"}
               </span>
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div><dt className="text-muted-foreground">Data</dt><dd className="font-semibold">{ticket.date}</dd></div>
+              <div><dt className="text-muted-foreground">Data</dt><dd className="font-semibold">{new Date(`${ticket.date}T12:00:00`).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</dd></div>
               <div><dt className="text-muted-foreground">Odjazd · przyjazd</dt><dd className="font-semibold tabular-nums">{ticket.dep} · {ticket.arr}</dd></div>
               <div><dt className="text-muted-foreground">Pasażerowie</dt><dd className="font-semibold">{ticket.passengers}</dd></div>
               <div><dt className="text-muted-foreground">Klasa · taryfa</dt><dd className="font-semibold">{ticket.travelClass} · {ticket.fare}</dd></div>
+              {ticket.paymentMethod && <div><dt className="text-muted-foreground">Płatność</dt><dd className="font-semibold">{ticket.paymentMethod === "card" ? "Karta płatnicza" : ticket.paymentMethod === "blik" ? "BLIK" : "Szybki przelew"}</dd></div>}
               {ticket.seats && ticket.seats.length > 0 && <div className="col-span-2"><dt className="text-muted-foreground">Miejsca</dt><dd className="font-semibold">{ticket.seats.join(" · ")}</dd></div>}
             </dl>
             <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
               <span className="text-sm text-muted-foreground">Nr {ticket.code}</span>
               <span className="font-extrabold">{ticket.total}</span>
             </div>
-            {ticket.status === "active" && <button onClick={cancel} className="mt-4 w-full rounded-xl border border-border px-4 py-3 text-sm font-semibold hover:border-destructive hover:text-destructive">Anuluj bilet demonstracyjny</button>}
+            <div data-print-hide className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button onClick={() => window.print()} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold"><Printer className="h-4 w-4" /> Drukuj / Zapisz PDF</button>
+              {ticket.status === "active" && <button onClick={cancel} className="flex-1 rounded-xl border border-border px-4 py-3 text-sm font-semibold hover:border-destructive hover:text-destructive">Anuluj bilet</button>}
+            </div>
           </div>
         )}
 
-        <p className="mt-5 text-xs leading-relaxed text-muted-foreground">To wersja demonstracyjna. Bilety są przechowywane wyłącznie w pamięci tej przeglądarki. Nie są prawdziwymi rezerwacjami i nie można ich użyć w podróży.</p>
       </div>
     </div>
   );

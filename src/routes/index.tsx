@@ -122,11 +122,6 @@ function Index() {
         </form>
       </section>
 
-      <aside role="note" className="mx-auto mt-8 flex max-w-5xl items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm">
-        <span className="font-bold text-primary">SYMULACJA</span>
-        <p className="text-muted-foreground">Rozkład, dostępność miejsc i bilety są fikcyjne. Płatność jest wyłącznie testowa — pieniądze nie są pobierane.</p>
-      </aside>
-
       {manageOpen && <ManageTicket onClose={() => setManageOpen(false)} />}
 
       <section id="trasy" className="mx-auto max-w-7xl px-5 py-24">
