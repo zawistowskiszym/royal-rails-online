@@ -28,3 +28,6 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Keep Velovia seat numbers, empty slots, and table positions in the shared seat-layout module; the selector and ticket labels must use the same data to avoid mismatched reservations.
+- Treat Velovia layouts and occupancy as a simplified demonstration, with repeated intermediate layouts where reference plans are incomplete; do not imply live seat inventory.
